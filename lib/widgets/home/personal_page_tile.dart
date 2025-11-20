@@ -3,26 +3,30 @@ import '../../screens/page_screen.dart';
 
 class PersonalPageTile extends StatelessWidget {
   final String title;
-  const PersonalPageTile({required this.title, super.key});
+  final VoidCallback? onMorePressed;
+  final VoidCallback? onTap;
+
+  const PersonalPageTile({
+    super.key,
+    required this.title,
+    this.onMorePressed,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: const Icon(Icons.lock_outline, size: 18),
-      title: Text(title, style: const TextStyle(fontSize: 16)),
-      trailing: const Icon(Icons.more_horiz, size: 20),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const NotionPageScreen(
-              // ★ 이 부분이 수정되었습니다. 고유 ID를 전달합니다.
-              pageId: 'personal_page', 
-            ),
-          ),
-        );
-      },
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: const Icon(Icons.description_outlined, size: 18),
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+
+      // 🔥 onTap은 단 하나만!
+      onTap: onTap,
+
+      trailing: IconButton(
+        icon: const Icon(Icons.more_horiz, size: 18),
+        onPressed: onMorePressed,
+      ),
     );
   }
 }

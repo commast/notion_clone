@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 // ==========================================================
 class BlockData {
   final String type; // 블록의 종류 식별자
-  dynamic content;   // 블록의 실제 데이터
+  dynamic content; // 블록의 실제 데이터
 
   BlockData({required this.type, this.content});
 }
@@ -17,6 +17,15 @@ class PageMetadata {
   final String id;
   String title;
   PageMetadata({required this.id, required this.title});
+}
+
+// lib/data/page_data.dart
+class PageData {
+  final String id; // 나중에 상세 페이지 이동할 때 쓰기 좋음
+  String title;
+  DateTime lastEdited;
+
+  PageData({required this.id, required this.title, required this.lastEdited});
 }
 
 // ==========================================================
@@ -35,8 +44,8 @@ List<BlockData> getPageBlocks(String pageId) {
   if (!_pageDataMap.containsKey(pageId)) {
     debugPrint('새 페이지 초기화: $pageId');
     _pageDataMap[pageId] = [
-      BlockData(type: 'title', content: '제목 없음'), 
-      BlockData(type: 'text', content: ''),       
+      BlockData(type: 'title', content: '제목 없음'),
+      BlockData(type: 'text', content: ''),
     ];
   }
   return _pageDataMap[pageId]!;
@@ -50,6 +59,6 @@ String addNewPage() {
   final newPageMetadata = PageMetadata(id: newId, title: newTitle);
   allPages.add(newPageMetadata);
   // getPageBlocks(newId) 호출 시 데이터가 초기화됩니다.
-  
+
   return newId;
 }
