@@ -1,31 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
+import 'utils/theme_provider.dart';
+import 'utils/app_theme.dart';
+
 
 void main() {
-  runApp(const NotionCloneApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const NotionCloneApp(),
+    ),
+  );
 }
+
 
 class NotionCloneApp extends StatelessWidget {
   const NotionCloneApp({super.key});
 
+
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'Notion Clone',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          elevation: 0,
-          centerTitle: false,
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.black87),
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.themeMode,
       home: const NotionHomeScreen(),
     );
   }

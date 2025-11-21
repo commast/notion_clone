@@ -2,47 +2,48 @@ import 'package:flutter/material.dart';
 
 class NotionBottomBar extends StatelessWidget {
   final VoidCallback? onNewPage;
+  final VoidCallback? onSearch;
 
-  const NotionBottomBar({super.key, this.onNewPage});
+  const NotionBottomBar({
+    super.key,
+    this.onNewPage,
+    this.onSearch,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      decoration: BoxDecoration(
+      height: 50.0 + MediaQuery.of(context).padding.bottom,
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade300, width: 0.8),
+        border: Border(top: BorderSide(color: Colors.black12, width: 1.0)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildBarItem(Icons.home, '홈', () {}),
+            _buildBarItem(Icons.search, '검색', onSearch),
+            _buildBarItem(Icons.add_box_outlined, '새 페이지', onNewPage),
+          ],
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // 홈 버튼 -----------------------------------------
-          IconButton(
-            icon: const Icon(Icons.home_outlined, size: 26),
-            onPressed: () {
-              // 만약 다른 페이지에 있다면 홈으로 이동 가능
-              Navigator.popUntil(context, (route) => route.isFirst);
-            },
-          ),
+    );
+  }
 
-          // 검색 버튼 ---------------------------------------
-          IconButton(
-            icon: const Icon(Icons.search, size: 26),
-            onPressed: () {
-              // 검색 화면 만들면 여기에 연결
-              debugPrint("검색 버튼 눌림");
-            },
-          ),
-
-          // 새 페이지 버튼 ----------------------------------
-          IconButton(
-            icon: const Icon(Icons.mode_edit_outline, size: 26),
-            onPressed: onNewPage, // 외부에서 callback 연결
-          ),
-        ],
+  Widget _buildBarItem(IconData icon, String label, VoidCallback? onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 24),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(fontSize: 10)),
+          ],
+        ),
       ),
     );
   }

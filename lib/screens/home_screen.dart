@@ -2,36 +2,116 @@ import 'package:flutter/material.dart';
 import '../widgets/common/notion_bottom_bar.dart';
 import '../widgets/home/recent_page_card.dart';
 import '../widgets/home/personal_page_tile.dart';
-import '../data/page_data.dart'; // 아까 만든 모델 import
+import '../data/page_data.dart';
 import '../screens/page_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/settings_screen.dart';
+import '../screens/trash_screen.dart';
+import '../screens/search_screen.dart';
+
+
+// 안전한 firstWhere를 위한 extension
+extension FirstWhereOrNullExtension<E> on Iterable<E> {
+  E? firstWhereOrNull(bool Function(E element) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
+
 
 class NotionHomeScreen extends StatefulWidget {
   const NotionHomeScreen({super.key});
+
 
   @override
   State<NotionHomeScreen> createState() => _NotionHomeScreenState();
 }
 
+
 class _NotionHomeScreenState extends State<NotionHomeScreen> {
   final List<Map<String, dynamic>> _recentPages = [];
   String? _userName;
+  final List<PageData> _deletedPages = [];
+  final List<PageData> _personalPages = [];
+  final List<PageData> _favoritePages = [];
 
-  //로그인 화면 이동
+
+  // 최근 방문한 페이지를 추가/업데이트하는 함수
+  void _updateRecentPages(PageData page) {
+    setState(() {
+      // 기존에 있던 페이지라면 먼저 제거
+      _recentPages.removeWhere((item) => item['pageId'] == page.id);
+      
+      // 맨 앞에 추가 (최근 방문한 것이 먼저 오도록)
+      _recentPages.insert(0, {
+        'pageId': page.id,
+        'title': page.title,
+        'icon': Icons.edit_note,
+        'color': const Color(0xFFF0F0F0),
+      });
+      
+      // 최대 5개만 유지
+      if (_recentPages.length > 5) {
+        _recentPages.removeLast();
+      }
+    });
+  }
+  // 검색 화면 열기
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SearchScreen(
+          allPages: _getAllPages(),
+          onNewPage: (ctx) => _createNewPageAndOpen(ctx),
+        ),
+      ),
+    ).then((_) => setState(() {}));
+  }
+
+
+
+  // 모든 페이지(상위+하위) 리스트 가져오기
+  List<PageData> _getAllPages() {
+    List<PageData> result = [];
+    for (var page in _personalPages.where((p) => p.parentPage == null)) {
+      result.add(page);
+      _addAllSubPages(result, page.subPages);
+    }
+    return result;
+  }
+
+
+  // 모든 하위 페이지를 재귀적으로 추가
+  void _addAllSubPages(List<PageData> result, List<PageData> subPages) {
+    for (var subPage in subPages) {
+      result.add(subPage);
+      if (subPage.subPages.isNotEmpty) {
+        _addAllSubPages(result, subPage.subPages);
+      }
+    }
+  }
+
+
+  // 로그인 화면 이동
   Future<void> _goToLogin() async {
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
 
+
     if (result != null && result.isNotEmpty) {
       setState(() {
-        _userName = result; // 로그인된 사용자 이름
+        _userName = result;
       });
     }
   }
 
-  //로그아웃 확인
+
+  // 로그아웃 확인
   Future<void> _confirmLogout() async {
     final result = await showDialog<bool>(
       context: context,
@@ -53,21 +133,21 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       },
     );
 
+
     if (result == true) {
       setState(() {
-        _userName = null; // 로그인 해제
+        _userName = null;
       });
     }
   }
 
-  // 개인 페이지 리스트를 PageData로 관리
-  final List<PageData> _personalPages = [];
 
-  // --- 버튼 눌렀을 때: 최종 편집 기준으로 정렬 (최근 것이 위로 오게)
+  // 버튼 눌렀을 때: 최종 편집 기준으로 정렬
   void _sortByLastEdited() {
     setState(() {
       _personalPages.sort((a, b) => b.lastEdited.compareTo(a.lastEdited));
     });
+
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -76,6 +156,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       ),
     );
   }
+
 
   // + 버튼 눌렀을 때: "제목 없음" 새 페이지 추가
   void _addNewPage() {
@@ -86,26 +167,15 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         lastEdited: DateTime.now(),
       );
 
-      // 개인 페이지 리스트에 추가
       _personalPages.insert(0, newPage);
-
-      // 최근 방문한 페이지 카드에도 추가
-      _recentPages.insert(0, {
-        'pageId': newPage.id, // 👈 새로 추가된 페이지 id 저장
-        'title': newPage.title,
-        'icon': Icons.edit_note,
-        'color': const Color(0xFFF0F0F0),
-      });
-
-      if (_recentPages.length > 7) {
-        _recentPages.removeLast();
-      }
     });
   }
+
 
   // 새 페이지를 만들고, 해당 페이지 화면으로 바로 이동
   void _createNewPageAndOpen(BuildContext ctx) {
     late PageData newPage;
+
 
     setState(() {
       newPage = PageData(
@@ -114,33 +184,156 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         lastEdited: DateTime.now(),
       );
 
-      // 1) 개인 페이지 리스트에 추가
       _personalPages.insert(0, newPage);
-
-      // 2) 최근 방문한 페이지 카드에도 추가
-      _recentPages.insert(0, {
-        'pageId': newPage.id,
-        'title': newPage.title,
-        'icon': Icons.edit_note,
-        'color': const Color(0xFFF0F0F0),
-      });
-
-      if (_recentPages.length > 7) {
-        _recentPages.removeLast();
-      }
     });
 
-    // 3) 새 페이지 화면으로 이동
+    _updateRecentPages(newPage);
+
     Navigator.push(
       ctx,
       MaterialPageRoute(
         builder: (_) => NotionPageScreen(
           page: newPage,
-          onNewPage: () => _createNewPageAndOpen(ctx), // 페이지 화면에서도 새 페이지 생성 가능
+          onNewPage: () => _createNewPageAndOpen(ctx),
         ),
       ),
     );
   }
+
+
+  // 하위 페이지 추가
+  void _addSubPage(PageData parentPage) {
+    setState(() {
+      final subPage = PageData(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '제목 없음',
+        lastEdited: DateTime.now(),
+        parentPage: parentPage,
+      );
+      
+      // 상위 페이지의 subPages 리스트에 추가
+      parentPage.subPages.add(subPage);
+      parentPage.isExpanded = true; // 자동으로 확장
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${parentPage.title}"의 하위 페이지가 생성되었습니다.')),
+      );
+    });
+  }
+
+
+  // 페이지 확장/축소 토글
+  void _toggleExpand(PageData page) {
+    setState(() {
+      page.isExpanded = !page.isExpanded;
+    });
+  }
+
+
+  // 평면화된 페이지 리스트 가져오기 (확장된 페이지만)
+  List<PageData> _getFlattenedPages() {
+    List<PageData> result = [];
+    for (var page in _personalPages.where((p) => p.parentPage == null)) {
+      result.add(page);
+      if (page.isExpanded && page.subPages.isNotEmpty) {
+        _addExpandedSubPages(result, page.subPages);
+      }
+    }
+    return result;
+  }
+
+
+  // 확장된 하위 페이지들을 재귀적으로 추가
+  void _addExpandedSubPages(List<PageData> result, List<PageData> subPages) {
+    for (var subPage in subPages) {
+      result.add(subPage);
+      if (subPage.isExpanded && subPage.subPages.isNotEmpty) {
+        _addExpandedSubPages(result, subPage.subPages);
+      }
+    }
+  }
+
+
+  // 즐겨찾기 토글
+  void _toggleFavorite(PageData page) {
+    setState(() {
+      page.isFavorite = !page.isFavorite;
+      
+      if (page.isFavorite) {
+        _favoritePages.add(page);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${page.title}" 페이지가 즐겨찾기에 추가되었습니다.')),
+        );
+      } else {
+        _favoritePages.remove(page);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${page.title}" 페이지가 즐겨찾기에서 해제되었습니다.')),
+        );
+      }
+    });
+  }
+
+
+  // 페이지 복제
+  void _duplicatePage(PageData page) {
+    setState(() {
+      final duplicatedPage = page.copyWith(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '${page.title} (복사본)',
+        lastEdited: DateTime.now(),
+        isFavorite: false,
+      );
+      
+      _personalPages.insert(0, duplicatedPage);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${page.title}" 페이지가 복제되었습니다.')),
+      );
+    });
+  }
+
+
+  // 페이지 옮기기 다이얼로그 표시
+  Future<void> _showMovePageDialog(PageData pageToMove) async {
+    final result = await showDialog<PageData?>(
+      context: context,
+      builder: (context) {
+        return _MovePageDialog(
+          allPages: _getAllPages(),
+          currentPage: pageToMove,
+        );
+      },
+    );
+
+    if (result != null) {
+      _movePageTo(pageToMove, result);
+    }
+  }
+
+
+  // 페이지를 다른 페이지의 하위로 이동
+  void _movePageTo(PageData pageToMove, PageData targetParent) {
+    setState(() {
+      // 기존 위치에서 제거
+      if (pageToMove.parentPage != null) {
+        pageToMove.parentPage!.subPages.remove(pageToMove);
+      } else {
+        _personalPages.remove(pageToMove);
+      }
+
+      // 새 위치로 이동
+      pageToMove.parentPage = targetParent;
+      targetParent.subPages.add(pageToMove);
+      targetParent.isExpanded = true; // 자동으로 확장
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${pageToMove.title}" 페이지가 "${targetParent.title}"의 하위 페이지로 이동되었습니다.'),
+        ),
+      );
+    });
+  }
+
 
   // 페이지 삭제 버튼
   Future<void> _confirmDeletePage(PageData page) async {
@@ -149,38 +342,103 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('페이지 삭제'),
-          content: const Text('제거하시겠습니까?'),
+          content: const Text('휴지통으로 이동하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('아니오'),
+              child: const Text('취소'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('예'),
+              child: const Text('삭제'),
             ),
           ],
         );
       },
     );
 
+
     if (result == true) {
       setState(() {
-        // 1) 개인 페이지 목록에서 삭제
         _personalPages.remove(page);
-
-        // 2) 최근 방문한 페이지 카드에서도 삭제
+        _favoritePages.remove(page);
+        _deletedPages.insert(0, page);
         _recentPages.removeWhere((item) => item['pageId'] == page.id);
       });
+
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${page.title}" 페이지가 휴지통으로 이동되었습니다.'),
+          action: SnackBarAction(
+            label: '실행 취소',
+            onPressed: () {
+              setState(() {
+                _deletedPages.remove(page);
+                _personalPages.insert(0, page);
+                if (page.isFavorite) {
+                  _favoritePages.add(page);
+                }
+              });
+            },
+          ),
+        ),
+      );
     }
   }
+
+
+  // 페이지 복원
+  void _restorePage(PageData page) {
+    setState(() {
+      _deletedPages.remove(page);
+      _personalPages.insert(0, page);
+      page.lastEdited = DateTime.now();
+      if (page.isFavorite) {
+        _favoritePages.add(page);
+      }
+    });
+  }
+
+
+  // 페이지 영구 삭제
+  void _permanentlyDeletePage(PageData page) {
+    setState(() {
+      _deletedPages.remove(page);
+    });
+  }
+
+
+  // 설정 화면 열기
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
+
+  // 휴지통 화면 열기
+  void _openTrash() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TrashScreen(
+          deletedPages: _deletedPages,
+          onRestore: _restorePage,
+          onPermanentDelete: _permanentlyDeletePage,
+        ),
+      ),
+    ).then((_) => setState(() {}));
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: _userName == null
-            // ✅ 로그인 안 된 상태: "로그인" 텍스트
+            // 로그인 안 된 상태: "로그인" 텍스트
             ? GestureDetector(
                 onTap: _goToLogin,
                 child: const Text(
@@ -188,7 +446,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               )
-            // ✅ 로그인 된 상태: 프로필 아이콘 + "OOO의 Notion"
+            // 로그인 된 상태: 프로필 아이콘 + "OOO의 Notion"
             : InkWell(
                 onTap: _confirmLogout,
                 child: Row(
@@ -218,10 +476,42 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                   ],
                 ),
               ),
-        actions: const [
-          IconButton(icon: Icon(Icons.more_vert), onPressed: null),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'settings') {
+                _openSettings();
+              } else if (value == 'trash') {
+                _openTrash();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, size: 20),
+                    SizedBox(width: 12),
+                    Text('설정'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'trash',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20),
+                    SizedBox(width: 12),
+                    Text('휴지통'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+
 
       body: CustomScrollView(
         slivers: [
@@ -236,6 +526,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
             ),
           ),
 
+
           // 최근 방문 카드
           SliverToBoxAdapter(
             child: SizedBox(
@@ -247,21 +538,29 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                   final recent = _recentPages[index];
                   final pageId = recent['pageId'] as String;
 
-                  // pageId로 실제 PageData 찾기
-                  final pageData = _personalPages.firstWhere(
+                  // 모든 페이지(상위+하위)에서 검색
+                  final allPages = _getAllPages();
+                  final pageData = allPages.firstWhereOrNull(
                     (p) => p.id == pageId,
                   );
+
+                  // 페이지를 찾을 수 없으면 빈 위젯 반환
+                  if (pageData == null) {
+                    return const SizedBox.shrink();
+                  }
 
                   return RecentPageCard(
                     title: pageData.title,
                     icon: recent['icon'] as IconData,
                     color: recent['color'] as Color,
                     onTap: () async {
+                      _updateRecentPages(pageData);
+                      
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => NotionPageScreen(
-                            page: pageData, // ✅ PageData 넘기기
+                            page: pageData,
                             onNewPage: () => _createNewPageAndOpen(context),
                             onPageChanged: () => setState(() {}),
                           ),
@@ -275,7 +574,55 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
             ),
           ),
 
-          // ------------------ 여기부터 "개인 페이지" 헤더 Row ------------------
+
+          // 즐겨찾기 섹션
+          if (_favoritePages.isNotEmpty) ...[
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16.0,
+                  right: 16.0,
+                  top: 20.0,
+                  bottom: 8.0,
+                ),
+                child: Text(
+                  '즐겨찾기',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final page = _favoritePages[index];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: const Icon(Icons.star, size: 18, color: Colors.amber),
+                    title: Text(page.title, style: const TextStyle(fontSize: 14)),
+                    onTap: () async {
+                      _updateRecentPages(page);
+                      
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NotionPageScreen(
+                            page: page,
+                            onNewPage: () => _createNewPageAndOpen(context),
+                            onPageChanged: () => setState(() {}),
+                          ),
+                        ),
+                      );
+                      setState(() {});
+                    },
+                  );
+                },
+                childCount: _favoritePages.length,
+              ),
+            ),
+          ],
+
+
+          // 개인 페이지 헤더 Row
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(
@@ -291,7 +638,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
-                  // ... 버튼 (정렬)
                   IconButton(
                     icon: const Icon(Icons.more_horiz, size: 20),
                     padding: EdgeInsets.zero,
@@ -299,7 +645,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                     onPressed: _sortByLastEdited,
                   ),
                   const SizedBox(width: 8),
-                  // + 버튼 (새 페이지)
                   IconButton(
                     icon: const Icon(Icons.add, size: 20),
                     padding: EdgeInsets.zero,
@@ -310,16 +655,23 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
               ),
             ),
           ),
-          // -------------------------------------------------------------------
+
 
           // 개인 페이지 리스트
           SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
-              final page = _personalPages[index];
+              final flattenedPages = _getFlattenedPages();
+              final page = flattenedPages[index];
+              
               return PersonalPageTile(
                 title: page.title,
-                onMorePressed: () => _confirmDeletePage(page),
+                isFavorite: page.isFavorite,
+                isExpanded: page.isExpanded,
+                hasSubPages: page.subPages.isNotEmpty,
+                level: page.level,
                 onTap: () async {
+                  _updateRecentPages(page);
+                  
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -332,16 +684,130 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                   );
                   setState(() {});
                 },
+                onAddSubPage: () => _addSubPage(page),
+                onToggleExpand: page.subPages.isNotEmpty ? () => _toggleExpand(page) : null,
+                onFavorite: () => _toggleFavorite(page),
+                onMove: () => _showMovePageDialog(page),
+                onDuplicate: () => _duplicatePage(page),
+                onDelete: () => _confirmDeletePage(page),
               );
-            }, childCount: _personalPages.length),
+            }, childCount: _getFlattenedPages().length),
           ),
+
 
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
       bottomSheet: NotionBottomBar(
         onNewPage: () => _createNewPageAndOpen(context),
+        onSearch: _openSearch,
       ),
+    );
+  }
+}
+
+
+// 페이지 이동 다이얼로그
+class _MovePageDialog extends StatefulWidget {
+  final List<PageData> allPages;
+  final PageData currentPage;
+
+  const _MovePageDialog({
+    required this.allPages,
+    required this.currentPage,
+  });
+
+  @override
+  State<_MovePageDialog> createState() => _MovePageDialogState();
+}
+
+class _MovePageDialogState extends State<_MovePageDialog> {
+  PageData? _selectedPage;
+
+  // 현재 페이지와 그 하위 페이지들은 선택할 수 없도록 필터링
+  List<PageData> get _selectablePages {
+    return widget.allPages.where((page) {
+      // 자기 자신은 제외
+      if (page.id == widget.currentPage.id) return false;
+      
+      // 자신의 하위 페이지는 제외
+      if (_isDescendant(page, widget.currentPage)) return false;
+      
+      return true;
+    }).toList();
+  }
+
+  // 페이지가 특정 페이지의 하위 페이지인지 확인
+  bool _isDescendant(PageData page, PageData potentialAncestor) {
+    PageData? current = page.parentPage;
+    while (current != null) {
+      if (current.id == potentialAncestor.id) return true;
+      current = current.parentPage;
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('페이지 이동'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 300,
+        child: _selectablePages.isEmpty
+            ? const Center(
+                child: Text(
+                  '이동 가능한 페이지가 없습니다.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            : ListView.builder(
+                shrinkWrap: true,
+                itemCount: _selectablePages.length,
+                itemBuilder: (context, index) {
+                  final page = _selectablePages[index];
+                  final isSelected = _selectedPage?.id == page.id;
+                  
+                  return ListTile(
+                    contentPadding: EdgeInsets.only(
+                      left: 16.0 + (page.level * 20.0),
+                      right: 16.0,
+                    ),
+                    leading: Icon(
+                      Icons.description_outlined,
+                      size: 18,
+                      color: isSelected ? Colors.blue : null,
+                    ),
+                    title: Text(
+                      page.title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isSelected ? Colors.blue : Colors.black,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onTap: () {
+                      setState(() {
+                        _selectedPage = page;
+                      });
+                    },
+                  );
+                },
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: _selectedPage == null
+              ? null
+              : () => Navigator.pop(context, _selectedPage),
+          child: const Text('이동'),
+        ),
+      ],
     );
   }
 }
