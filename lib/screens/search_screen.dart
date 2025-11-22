@@ -69,23 +69,28 @@ class _SearchScreenState extends State<SearchScreen> {
       if (query.isEmpty) {
         _filteredPages = widget.allPages;
       } else {
+        final lowerQuery = query.toLowerCase();
+        
         if (_titleOnly) {
           // 제목만 검색
           _filteredPages = widget.allPages
               .where((page) =>
-                  page.title.toLowerCase().contains(query.toLowerCase()))
+                  page.title.toLowerCase().contains(lowerQuery))
               .toList();
         } else {
-          // 제목 + 내용 검색
+          // 제목 + 내용 + ID 검색
           _filteredPages = widget.allPages.where((page) {
             // 제목에서 검색
-            final titleMatch = page.title.toLowerCase().contains(query.toLowerCase());
+            final titleMatch = page.title.toLowerCase().contains(lowerQuery);
+            
+            // ID에서 검색
+            final idMatch = page.id.toLowerCase().contains(lowerQuery);
             
             // 내용에서 검색
             final content = getPageContent(page.id);
-            final contentMatch = content.toLowerCase().contains(query.toLowerCase());
+            final contentMatch = content.toLowerCase().contains(lowerQuery);
             
-            return titleMatch || contentMatch;
+            return titleMatch || contentMatch || idMatch;
           }).toList();
         }
         
@@ -94,7 +99,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     });
   }
-
 
   // 정렬 적용
   void _applySorting() {
@@ -113,7 +117,13 @@ class _SearchScreenState extends State<SearchScreen> {
         break;
       case '결과 상위 일치':
       default:
-        // 기본 정렬 유지
+        // ID 정확히 일치하는 항목 우선
+        final lowerQuery = _searchController.text.toLowerCase().trim();
+        _filteredPages.sort((a, b) {
+          if (a.id == lowerQuery) return -1;
+          if (b.id == lowerQuery) return 1;
+          return 0;
+        });
         break;
     }
   }
@@ -145,6 +155,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: [
                       '결과 상위 일치',
                       '최종편집: 최신순',
@@ -154,7 +165,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ].map((option) {
                       final isSelected = _sortOption == option;
                       return ChoiceChip(
-                        label: Text(option),
+                        label: Text(option, style: const TextStyle(fontSize: 12)),
                         selected: isSelected,
                         onSelected: (selected) {
                           setModalState(() {
@@ -174,7 +185,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   // 제목만 검색
                   SwitchListTile(
                     title: const Text('제목만 검색'),
-                    subtitle: const Text('체크 해제 시 내용도 포함하여 검색'),
+                    subtitle: const Text('체크 해제 시 내용과 ID도 포함하여 검색'),
                     value: _titleOnly,
                     onChanged: (value) {
                       setModalState(() {
@@ -217,6 +228,26 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     
     return path.join(' > ');
+  }
+
+  // 페이지 열기
+  void _openPage(PageData page) {
+    _addToSearchHistory(_searchController.text);
+    
+    Navigator.pop(context); // 검색 화면 닫기
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotionPageScreen(
+          page: page,
+          onNewPage: () => widget.onNewPage(context),
+          onPageChanged: () => setState(() {}),
+          onFavoriteToggle: (p) => setState(() {}),
+          onDuplicate: (p) => setState(() {}), //
+        ),
+      ),
+    );
   }
 
   @override
@@ -333,6 +364,11 @@ class _SearchScreenState extends State<SearchScreen> {
               '페이지를 검색하세요',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
+            const SizedBox(height: 8),
+            Text(
+              '제목, 내용, ID로 검색 가능',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+            ),
           ],
         ),
       );
@@ -346,6 +382,10 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
+            Text(
+              '"${_searchController.text}"에 대한',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
             Text(
               '검색 결과가 없습니다',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
@@ -361,37 +401,47 @@ class _SearchScreenState extends State<SearchScreen> {
       itemBuilder: (context, index) {
         final page = _filteredPages[index];
         final pagePath = _getPagePath(page);
+        final isExactIdMatch = page.id == _searchController.text.toLowerCase().trim();
         
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: Icon(
             page.isFavorite ? Icons.star : Icons.description_outlined,
             size: 18,
-            color: page.isFavorite ? Colors.amber : null,
+            color: page.isFavorite ? Colors.amber : Colors.grey,
           ),
           title: Text(
             page.title,
-            style: const TextStyle(fontSize: 14),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isExactIdMatch ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
-          subtitle: pagePath != page.title
-              ? Text(
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (pagePath != page.title)
+                Text(
                   pagePath,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              if (isExactIdMatch)
+                Text(
+                  'ID: ${page.id}',
+                  style: const TextStyle(fontSize: 11, color: Colors.blue),
+                ),
+            ],
+          ),
+          trailing: isExactIdMatch
+              ? const Chip(
+                  label: Text('ID 일치', style: TextStyle(fontSize: 10)),
+                  backgroundColor: Colors.blue,
+                  labelStyle: TextStyle(color: Colors.white),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 )
               : null,
-          onTap: () {
-            _addToSearchHistory(_searchController.text);
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => NotionPageScreen(
-                  page: page,
-                  onNewPage: () => widget.onNewPage(context),
-                ),
-              ),
-            );
-          },
+          onTap: () => _openPage(page),
         );
       },
     );

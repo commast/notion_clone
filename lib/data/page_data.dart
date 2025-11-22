@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 // 기존 블록 데이터 모델
 class BlockData {
-  final String type; // 블록의 종류 식별자
+  final String type; 
   dynamic content; // 블록의 실제 데이터
 
   BlockData({required this.type, this.content});
@@ -17,13 +17,13 @@ class PageMetadata {
 
 // 페이지 데이터 모델
 class PageData {
-  final String id; // 고유 식별자
-  String title; // 페이지 제목
-  DateTime lastEdited; // 마지막 편집 시간
-  bool isFavorite; // 즐겨찾기 여부
-  bool isExpanded; // 확장 상태 (하위 페이지 표시 여부)
-  List<PageData> subPages; // 하위 페이지 리스트
-  PageData? parentPage; // 상위 페이지 참조
+  final String id; 
+  String title; 
+  DateTime lastEdited; 
+  bool isFavorite; 
+  bool isExpanded; 
+  List<PageData> subPages; 
+  PageData? parentPage; 
 
   PageData({
     required this.id,
@@ -68,7 +68,7 @@ class PageData {
   }
 }
 
-// 전역 저장소 및 관리 로직
+// 전역 저장소 - 하나로 통일
 Map<String, List<BlockData>> _pageDataMap = {};
 
 // 모든 페이지의 목록 (목록 화면에서 표시)
@@ -88,6 +88,13 @@ List<BlockData> getPageBlocks(String pageId) {
   }
   return _pageDataMap[pageId]!;
 }
+
+// 페이지 블록 저장 함수 (수정)
+void savePageBlocks(String pageId, List<BlockData> blocks) {
+  _pageDataMap[pageId] = blocks;
+  debugPrint('페이지 블록 저장: $pageId, ${blocks.length}개 블록');
+}
+
 
 // 새 페이지를 생성하고 리스트에 추가하는 함수
 String addNewPage() {
@@ -114,5 +121,5 @@ String getPageContent(String pageId) {
     }
   }
   
-  return content.toString();
+  return content.toString().trim();
 }

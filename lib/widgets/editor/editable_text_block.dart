@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../utils/font_provider.dart';
 
 class EditableTextBlock extends StatefulWidget {
   final String initialText;
   final bool isTitle;
   final FocusNode? focusNode;
-  final Function(String) onChanged; // ★ 데이터 저장을 위한 콜백 추가
+  final Function(String) onChanged;
+  final String? pageId;
 
   const EditableTextBlock({
     required this.initialText,
     required this.isTitle,
-    required this.onChanged, // ★ 필수 인자로 변경
+    required this.onChanged,
     this.focusNode,
+    this.pageId,
     super.key,
   });
 
@@ -28,7 +32,6 @@ class _EditableTextBlockState extends State<EditableTextBlock> {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _controller = TextEditingController(text: widget.initialText);
-
     _focusNode.addListener(_handleFocusChange);
   }
 
@@ -52,26 +55,34 @@ class _EditableTextBlockState extends State<EditableTextBlock> {
 
   @override
   Widget build(BuildContext context) {
+    // 글꼴 Provider 가져오기
+    final fontProvider = Provider.of<FontProvider>(context);
+    final currentFont = widget.pageId != null 
+        ? fontProvider.getFontFamily(widget.pageId!)
+        : FontFamily.basic;
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: widget.isTitle ? 20.0 : 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!widget.isTitle)
-            Container(width: 20, height: 20, margin: const EdgeInsets.only(top: 10)), 
-          
+            Container(
+              width: 20,
+              height: 20,
+              margin: const EdgeInsets.only(top: 10),
+            ),
           Expanded(
             child: TextField(
               focusNode: _focusNode,
               controller: _controller,
-              // ★ 텍스트가 변경될 때마다 부모(PageScreen)에게 알려줌
-              onChanged: widget.onChanged, 
+              onChanged: widget.onChanged,
               keyboardType: TextInputType.multiline,
               maxLines: null,
               decoration: InputDecoration(
                 border: InputBorder.none,
-                hintText: _hasFocus 
-                    ? '' 
+                hintText: _hasFocus
+                    ? ''
                     : (widget.isTitle ? '제목을 입력하세요' : '/ 를 입력하여 블록을 추가하세요'),
                 hintStyle: TextStyle(
                   color: Colors.grey.withOpacity(0.6),
@@ -80,7 +91,9 @@ class _EditableTextBlockState extends State<EditableTextBlock> {
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
-              style: TextStyle(
+              // 글꼴 적용
+              style: fontProvider.getTextStyle(
+                currentFont,
                 fontSize: widget.isTitle ? 32 : 18,
                 fontWeight: widget.isTitle ? FontWeight.bold : FontWeight.normal,
                 color: Colors.black,
