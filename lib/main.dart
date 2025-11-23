@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart'; 
 import 'dart:async';
 import 'screens/home_screen.dart';
 import 'utils/theme_provider.dart';
@@ -8,12 +8,15 @@ import 'utils/font_provider.dart';
 import 'utils/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized(); 
+  
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => FontProvider()),
-        ChangeNotifierProvider(create: (_) => DeepLinkProvider()), // ✅ 딥링크 Provider 추가
+        // 딥링크 Provider 유지
+        ChangeNotifierProvider(create: (_) => DeepLinkProvider()), 
       ],
       child: const NotionCloneApp(),
     ),
@@ -28,7 +31,8 @@ class NotionCloneApp extends StatefulWidget {
 }
 
 class _NotionCloneAppState extends State<NotionCloneApp> {
-  StreamSubscription? _linkSubscription;
+  final AppLinks _appLinks = AppLinks(); 
+  StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
@@ -37,32 +41,35 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
   }
 
   Future<void> _initDeepLinks() async {
-    final deepLinkProvider = Provider.of<DeepLinkProvider>(context, listen: false);
+    // build 메서드가 호출된 후 Provider에 접근하기 위해 postFrameCallback을 사용합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final deepLinkProvider = Provider.of<DeepLinkProvider>(context, listen: false);
 
-    // ✅ 앱이 실행 중일 때 딥링크 처리
-    _linkSubscription = uriLinkStream.listen((Uri? uri) {
-      if (uri != null) {
-        debugPrint('🔗 딥링크 수신 (실행 중): $uri');
-        _handleDeepLink(uri, deepLinkProvider);
+
+      try {
+        final initialUri = await _appLinks.getInitialLink();
+        if (initialUri != null) {
+          debugPrint('🔗 딥링크 수신 (앱 시작): $initialUri');
+          _handleDeepLink(initialUri, deepLinkProvider);
+        }
+      } catch (e) {
+        debugPrint('❌ 초기 딥링크 처리 실패: $e');
       }
-    }, onError: (err) {
-      debugPrint('❌ 딥링크 에러: $err');
+
+
+      _linkSubscription = _appLinks.uriLinkStream.listen((Uri? uri) {
+        if (uri != null) {
+          debugPrint('🔗 딥링크 수신 (실행 중/백그라운드): $uri');
+          _handleDeepLink(uri, deepLinkProvider);
+        }
+      }, onError: (err) {
+        debugPrint('❌ 딥링크 에러: $err');
+      });
     });
-
-    // ✅ 앱이 종료된 상태에서 딥링크로 실행될 때
-    try {
-      final initialUri = await getInitialUri();
-      if (initialUri != null) {
-        debugPrint('🔗 딥링크 수신 (앱 시작): $initialUri');
-        _handleDeepLink(initialUri, deepLinkProvider);
-      }
-    } catch (e) {
-      debugPrint('❌ 초기 딥링크 처리 실패: $e');
-    }
   }
 
   void _handleDeepLink(Uri uri, DeepLinkProvider provider) {
-    // notion-clone://page/1763807132566 형식 처리
+   
     if (uri.scheme == 'notion-clone' && uri.pathSegments.isNotEmpty) {
       if (uri.pathSegments[0] == 'page' && uri.pathSegments.length > 1) {
         final pageId = uri.pathSegments[1];
@@ -90,12 +97,13 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: const NotionHomeScreen(),
+      // NotionCloneApp이 아닌 NotionHomeScreen으로 변경 (오타 수정)
+      home: const NotionHomeScreen(), 
     );
   }
 }
 
-// ✅ 딥링크 상태 관리를 위한 Provider
+// 딥링크 상태 관리를 위한 Provider (변경 없음)
 class DeepLinkProvider with ChangeNotifier {
   String? _pageIdToOpen;
 
