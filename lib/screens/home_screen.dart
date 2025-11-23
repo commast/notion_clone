@@ -272,7 +272,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
             });
           },
                 allPages: _getAllPages(),
-      onPageCreated: (newCreatedPage) {  // ✅ 추가
+      onPageCreated: (newCreatedPage) {  // 추가
         setState(() {
           _personalPages.insert(0, newCreatedPage);
         });
@@ -435,7 +435,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                       });
                     },
                           allPages: _getAllPages(),
-      onPageCreated: (newCreatedPage) {  // ✅ 추가
+      onPageCreated: (newCreatedPage) {  //  추가
         setState(() {
           _personalPages.insert(0, newCreatedPage);
         });
@@ -749,7 +749,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                               });
                             },
                                   allPages: _getAllPages(),
-      onPageCreated: (newCreatedPage) {  // ✅ 추가
+      onPageCreated: (newCreatedPage) {  // 추가
         setState(() {
           _personalPages.insert(0, newCreatedPage);
         });
@@ -811,7 +811,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                               });
                             },
                             allPages: _getAllPages(),
-      onPageCreated: (newCreatedPage) {  // ✅ 추가
+      onPageCreated: (newCreatedPage) {  // 추가
         setState(() {
           _personalPages.insert(0, newCreatedPage);
         });
@@ -894,7 +894,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                           });
                         },
                               allPages: _getAllPages(),
-      onPageCreated: (newCreatedPage) {  // ✅ 추가
+      onPageCreated: (newCreatedPage) {  // 추가
         setState(() {
           _personalPages.insert(0, newCreatedPage);
         });
