@@ -79,7 +79,13 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                     }
                   });
                 },
-                      allPages: _getAllPages(), // ✅ 이 줄 추가
+                      allPages: _getAllPages(),
+      onPageCreated: (newCreatedPage) {  // ✅ 추가
+        setState(() {
+          _personalPages.insert(0, newCreatedPage);
+        });
+      },
+                      
 
               ),
             ),
@@ -266,6 +272,12 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
             });
           },
                 allPages: _getAllPages(),
+      onPageCreated: (newCreatedPage) {  // ✅ 추가
+        setState(() {
+          _personalPages.insert(0, newCreatedPage);
+        });
+      },
+                
 
         ),
       ),
@@ -422,7 +434,12 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                         }
                       });
                     },
-                          allPages: _getAllPages(), // ✅ 이 줄 추가
+                          allPages: _getAllPages(),
+      onPageCreated: (newCreatedPage) {  // ✅ 추가
+        setState(() {
+          _personalPages.insert(0, newCreatedPage);
+        });
+      },
 
                   ),
                 ),
@@ -732,6 +749,11 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                               });
                             },
                                   allPages: _getAllPages(),
+      onPageCreated: (newCreatedPage) {  // ✅ 추가
+        setState(() {
+          _personalPages.insert(0, newCreatedPage);
+        });
+      },
 
                           ),
                         ),
@@ -789,6 +811,11 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                               });
                             },
                             allPages: _getAllPages(),
+      onPageCreated: (newCreatedPage) {  // ✅ 추가
+        setState(() {
+          _personalPages.insert(0, newCreatedPage);
+        });
+      },
                           ),
                         ),
                       );
@@ -867,6 +894,11 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                           });
                         },
                               allPages: _getAllPages(),
+      onPageCreated: (newCreatedPage) {  // ✅ 추가
+        setState(() {
+          _personalPages.insert(0, newCreatedPage);
+        });
+      },
 
                       ),
                     ),
