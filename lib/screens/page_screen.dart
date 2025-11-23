@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../data/page_data.dart';
 import '../utils/font_provider.dart';
@@ -112,6 +113,48 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     }
     return null;
   }
+
+  Future<void> _pickFile() async {
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: false,
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.first;
+      final path = file.path;
+      if (path == null) return;
+
+      _saveState();
+      setState(() {
+        // 원하는 타입으로 저장 (예: file 블록)
+        _currentBlocks.add(
+          BlockData(
+            type: 'file',
+            content: path, // 파일 경로 저장
+          ),
+        );
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${file.name}" 파일이 추가되었습니다.'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint("파일 불러오기 실패: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('파일을 불러오지 못했습니다.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
 
   // 페이지 이동
   void _navigateToPage(PageData page) {
@@ -233,41 +276,50 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _showImagePickerModal() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "이미지 추가",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: Colors.black87),
-                title: const Text("갤러리에서 선택"),
-                onTap: () => _pickImage(ImageSource.gallery),
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.black87),
-                title: const Text("사진 촬영"),
-                onTap: () => _pickImage(ImageSource.camera),
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "추가",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.black87),
+              title: const Text("갤러리에서 선택"),
+              onTap: () => _pickImage(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.black87),
+              title: const Text("사진 촬영"),
+              onTap: () => _pickImage(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file, color: Colors.black87),
+              title: const Text("파일 추가"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFile();
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   void _addBlock(String blockType) {
     _saveState();
@@ -575,7 +627,20 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
+                case 'file':
+                  blockWidget = ListTile(
+                    leading: const Icon(Icons.attach_file, size: 20),
+                    title: Text(
+                      (block.content as String).split('/').last, // 파일명만 표시
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    onTap: () {
+                      // TODO: 필요하다면 파일 열기/공유 기능 구현
+                    },
+                  );
+                  break;
+
                 case 'heading1':
                   blockWidget = HeadingBlock(
                     key: ValueKey(block),
