@@ -49,21 +49,21 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       try {
         final initialUri = await _appLinks.getInitialLink();
         if (initialUri != null) {
-          debugPrint('🔗 딥링크 수신 (앱 시작): $initialUri');
+          debugPrint('딥링크 수신 (앱 시작): $initialUri');
           _handleDeepLink(initialUri, deepLinkProvider);
         }
       } catch (e) {
-        debugPrint('❌ 초기 딥링크 처리 실패: $e');
+        debugPrint('초기 딥링크 처리 실패: $e');
       }
 
 
       _linkSubscription = _appLinks.uriLinkStream.listen((Uri? uri) {
         if (uri != null) {
-          debugPrint('🔗 딥링크 수신 (실행 중/백그라운드): $uri');
+          debugPrint('딥링크 수신 (실행 중/백그라운드): $uri');
           _handleDeepLink(uri, deepLinkProvider);
         }
       }, onError: (err) {
-        debugPrint('❌ 딥링크 에러: $err');
+        debugPrint('딥링크 에러: $err');
       });
     });
   }
@@ -73,7 +73,7 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
     if (uri.scheme == 'notion-clone' && uri.pathSegments.isNotEmpty) {
       if (uri.pathSegments[0] == 'page' && uri.pathSegments.length > 1) {
         final pageId = uri.pathSegments[1];
-        debugPrint('✅ 페이지 ID 추출: $pageId');
+        debugPrint('페이지 ID 추출: $pageId');
         
         // Provider에 페이지 ID 저장
         provider.setPageIdToOpen(pageId);

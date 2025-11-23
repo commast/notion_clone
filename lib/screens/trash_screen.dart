@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../data/page_data.dart';
-import 'page_screen.dart';
 
 class TrashScreen extends StatefulWidget {
   final List<PageData> deletedPages;
