@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_links/app_links.dart'; 
+import 'package:app_links/app_links.dart';
 import 'dart:async';
+
+// 기존 import
 import 'screens/home_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/font_provider.dart';
 import 'utils/app_theme.dart';
+// 추가: Stub 서버 및 레포지토리 import
+import 'repositories/page_repository.dart';
+import 'services/stub_api_service.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); 
-  
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final apiService = StubApiService();
+  final pageRepository = PageRepository(apiService);
+
   runApp(
     MultiProvider(
       providers: [
+        Provider<PageRepository>.value(value: pageRepository),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => FontProvider()),
-        // 딥링크 Provider 유지
-        ChangeNotifierProvider(create: (_) => DeepLinkProvider()), 
+        ChangeNotifierProvider(create: (_) => DeepLinkProvider()),
       ],
       child: const NotionCloneApp(),
     ),
@@ -31,7 +39,7 @@ class NotionCloneApp extends StatefulWidget {
 }
 
 class _NotionCloneAppState extends State<NotionCloneApp> {
-  final AppLinks _appLinks = AppLinks(); 
+  final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
 
   @override
@@ -41,10 +49,8 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
   }
 
   Future<void> _initDeepLinks() async {
-    // build 메서드가 호출된 후 Provider에 접근하기 위해 postFrameCallback을 사용합니다.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final deepLinkProvider = Provider.of<DeepLinkProvider>(context, listen: false);
-
 
       try {
         final initialUri = await _appLinks.getInitialLink();
@@ -55,7 +61,6 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       } catch (e) {
         debugPrint('초기 딥링크 처리 실패: $e');
       }
-
 
       _linkSubscription = _appLinks.uriLinkStream.listen((Uri? uri) {
         if (uri != null) {
@@ -69,13 +74,10 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
   }
 
   void _handleDeepLink(Uri uri, DeepLinkProvider provider) {
-   
     if (uri.scheme == 'notion-clone' && uri.pathSegments.isNotEmpty) {
       if (uri.pathSegments[0] == 'page' && uri.pathSegments.length > 1) {
         final pageId = uri.pathSegments[1];
         debugPrint('페이지 ID 추출: $pageId');
-        
-        // Provider에 페이지 ID 저장
         provider.setPageIdToOpen(pageId);
       }
     }
@@ -97,13 +99,14 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      // NotionCloneApp이 아닌 NotionHomeScreen으로 변경 (오타 수정)
-      home: const NotionHomeScreen(), 
+      // 홈 화면에서 Provider(PageRepository)로 데이터 주입!
+      home: const NotionHomeScreen(), // 내부에서 PageRepository를 Provider로 받음
     );
   }
 }
 
-// 딥링크 상태 관리를 위한 Provider (변경 없음)
+
+// 딥링크 상태 관리를 위한 Provider
 class DeepLinkProvider with ChangeNotifier {
   String? _pageIdToOpen;
 
