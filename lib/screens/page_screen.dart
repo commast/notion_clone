@@ -27,6 +27,7 @@ import '../widgets/blocks/quote_block.dart';
 import '../widgets/blocks/divider_block.dart';
 import '../widgets/blocks/page_link_block.dart';
 
+
 class NotionPageScreen extends StatefulWidget {
   final PageData page;
   final VoidCallback? onNewPage;
@@ -36,7 +37,7 @@ class NotionPageScreen extends StatefulWidget {
   final Function(PageData)? onMove;
   final Function(PageData)? onDelete;
   final List<PageData>? allPages;
-  final Function(PageData)? onPageCreated; // ✅ 새 페이지 생성 콜백
+  final Function(PageData)? onPageCreated;
 
   const NotionPageScreen({
     super.key,
@@ -48,7 +49,7 @@ class NotionPageScreen extends StatefulWidget {
     this.onMove,
     this.onDelete,
     this.allPages,
-    this.onPageCreated, // ✅ 추가
+    this.onPageCreated,
   });
 
   @override
@@ -170,7 +171,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           ));
           break;
         case 'page':
-          // ✅ 새 페이지 생성 및 홈 화면에 추가
           final newPageId = DateTime.now().millisecondsSinceEpoch.toString();
           final newPageTitle = '제목 없음';
           
@@ -180,7 +180,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             lastEdited: DateTime.now(),
           );
           
-          // ✅ 홈 화면에 페이지 추가
           if (widget.onPageCreated != null) {
             widget.onPageCreated!(newPage);
           }
@@ -445,40 +444,75 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                 key: ValueKey(block),
                 content: block.content as String,
                 pageId: widget.page.id,
-                onChanged: (val) => block.content = val,
+                onChanged: (val) {
+                  setState(() {
+                    block.content = val;
+                  });
+                },
                 onEnterPressed: () {
                   setState(() {
                     final idx = _currentBlocks.indexOf(block);
                     _currentBlocks.insert(idx + 1, BlockData(type: 'bulleted_list', content: ''));
                   });
                 },
+                onBackspacePressed: () {
+                  setState(() {
+                    if ((block.content as String).isEmpty) {
+                      final idx = _currentBlocks.indexOf(block);
+                      // 일반 텍스트 블록으로 변환
+                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                    }
+                  });
+                },
               );
+
             
             case 'numbered_list':
               final data = block.content as Map<String, dynamic>;
+              
+              final currentIndex = _currentBlocks.indexOf(block);
+              
+              int displayNumber = 1;
+              for (int i = 0; i < currentIndex; i++) {
+                if (_currentBlocks[i].type == 'numbered_list') {
+                  displayNumber++;
+                }
+              }
+              
               return NumberedListBlock(
                 key: ValueKey(block),
-                number: data['number'] ?? 1,
+                number: displayNumber,
                 content: data['text'] ?? '',
                 pageId: widget.page.id,
                 onChanged: (val) {
-                  data['text'] = val;
-                  block.content = data;
+                  setState(() {
+                    data['text'] = val;
+                    block.content = data;
+                  });
                 },
                 onEnterPressed: () {
                   setState(() {
                     final idx = _currentBlocks.indexOf(block);
-                    final nextNumber = (data['number'] ?? 1) + 1;
                     _currentBlocks.insert(
                       idx + 1,
                       BlockData(
                         type: 'numbered_list',
-                        content: {'number': nextNumber, 'text': ''},
+                        content: {'number': displayNumber + 1, 'text': ''},
                       ),
                     );
                   });
                 },
+                onBackspacePressed: () {
+                  setState(() {
+                    if ((data['text'] ?? '').isEmpty) {
+                      final idx = _currentBlocks.indexOf(block);
+                      // 일반 텍스트 블록으로 변환
+                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                    }
+                  });
+                },
               );
+
             
             case 'todo_list':
               final data = block.content as Map<String, dynamic>;
@@ -494,8 +528,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   });
                 },
                 onContentChanged: (val) {
-                  data['text'] = val;
-                  block.content = data;
+                  setState(() {
+                    data['text'] = val;
+                    block.content = data;
+                  });
                 },
                 onEnterPressed: () {
                   setState(() {
@@ -509,7 +545,17 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     );
                   });
                 },
+                onBackspacePressed: () {
+                  setState(() {
+                    if ((data['text'] ?? '').isEmpty) {
+                      final idx = _currentBlocks.indexOf(block);
+                      // 일반 텍스트 블록으로 변환
+                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                    }
+                  });
+                },
               );
+
             
             case 'toggle_list':
               final data = block.content as Map<String, dynamic>;
@@ -519,12 +565,16 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                 content: data['content'] ?? '',
                 pageId: widget.page.id,
                 onTitleChanged: (val) {
-                  data['title'] = val;
-                  block.content = data;
+                  setState(() {
+                    data['title'] = val;
+                    block.content = data;
+                  });
                 },
                 onContentChanged: (val) {
-                  data['content'] = val;
-                  block.content = data;
+                  setState(() {
+                    data['content'] = val;
+                    block.content = data;
+                  });
                 },
                 onEnterPressed: () {
                   setState(() {
@@ -538,7 +588,17 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     );
                   });
                 },
+                onBackspacePressed: () {
+                  setState(() {
+                    if ((data['title'] ?? '').isEmpty) {
+                      final idx = _currentBlocks.indexOf(block);
+                      // 일반 텍스트 블록으로 변환
+                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                    }
+                  });
+                },
               );
+
             
             case 'callout':
               return CalloutBlock(
@@ -569,7 +629,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                 key: ValueKey(block),
                 pageTitle: pageTitle,
                 onTap: () {
-                  // ✅ 페이지 찾기 (widget.allPages에서)
                   PageData? targetPage;
                   if (widget.allPages != null) {
                     for (var p in widget.allPages!) {
@@ -661,10 +720,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 }
 
-// ... (나머지 Dialog 클래스들은 동일)
-
-
-//페이지 이동 다이얼로그
 class _PageNavigationDialog extends StatefulWidget {
   final List<PageData> allPages;
   final PageData currentPage;
@@ -711,7 +766,6 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 제목
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -721,7 +775,6 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
           ),
           const SizedBox(height: 16),
 
-          // 검색창
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: TextField(
@@ -758,7 +811,6 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
           ),
           const SizedBox(height: 16),
 
-          // 페이지 목록
           Flexible(
             child: Container(
               constraints: const BoxConstraints(maxHeight: 400),
@@ -816,7 +868,6 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
           
           const SizedBox(height: 10),
 
-          // 닫기 버튼
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
@@ -843,7 +894,6 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
   }
 }
 
-// 페이지 작업 다이얼로그
 class _PageActionsDialog extends StatefulWidget {
   final PageData page;
   final VoidCallback onFontChanged;
@@ -908,107 +958,107 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
       );
     }
   }
-@override
-Widget build(BuildContext context) {
-  final fontProvider = Provider.of<FontProvider>(context);
-  final currentFont = fontProvider.getFontFamily(widget.page.id);
-  final bool isFavorite = widget.page.isFavorite;
 
-  return Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.all(Radius.circular(20)),
-    ),
-    padding: const EdgeInsets.symmetric(vertical: 20),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            '작업',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  @override
+  Widget build(BuildContext context) {
+    final fontProvider = Provider.of<FontProvider>(context);
+    final currentFont = fontProvider.getFontFamily(widget.page.id);
+    final bool isFavorite = widget.page.isFavorite;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              '작업',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              _FontButton(
-                label: '기본',
-                isSelected: currentFont == FontFamily.basic,
-                onTap: () {
-                  fontProvider.setFontFamily(widget.page.id, FontFamily.basic);
-                  widget.onFontChanged();
-                },
-              ),
-              const SizedBox(width: 8),
-              _FontButton(
-                label: '세리프',
-                isSelected: currentFont == FontFamily.serif,
-                onTap: () {
-                  fontProvider.setFontFamily(widget.page.id, FontFamily.serif);
-                  widget.onFontChanged();
-                },
-              ),
-              const SizedBox(width: 8),
-              _FontButton(
-                label: '모노',
-                isSelected: currentFont == FontFamily.mono,
-                onTap: () {
-                  fontProvider.setFontFamily(widget.page.id, FontFamily.mono);
-                  widget.onFontChanged();
-                },
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                _FontButton(
+                  label: '기본',
+                  isSelected: currentFont == FontFamily.basic,
+                  onTap: () {
+                    fontProvider.setFontFamily(widget.page.id, FontFamily.basic);
+                    widget.onFontChanged();
+                  },
+                ),
+                const SizedBox(width: 8),
+                _FontButton(
+                  label: '세리프',
+                  isSelected: currentFont == FontFamily.serif,
+                  onTap: () {
+                    fontProvider.setFontFamily(widget.page.id, FontFamily.serif);
+                    widget.onFontChanged();
+                  },
+                ),
+                const SizedBox(width: 8),
+                _FontButton(
+                  label: '모노',
+                  isSelected: currentFont == FontFamily.mono,
+                  onTap: () {
+                    fontProvider.setFontFamily(widget.page.id, FontFamily.mono);
+                    widget.onFontChanged();
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
-        
-        const Divider(height: 32),
+          
+          const Divider(height: 32),
 
-        _ActionMenuItem(
-          icon: isFavorite ? Icons.star : Icons.star_border,
-          title: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
-          iconColor: Colors.amber,
-          onTap: () {
-            widget.onFavoriteToggle();
-            Navigator.pop(context);
-          },
-        ),
-        
-        _ActionMenuItem(
-          icon: Icons.link,
-          title: '링크 복사',
-          onTap: _copyPageLink,
-        ),
-        
-        _ActionMenuItem(
-          icon: Icons.content_copy,
-          title: '복제',
-          onTap: widget.onDuplicate,
-        ),
-        
-        _ActionMenuItem(
-          icon: Icons.drive_file_move_outline,
-          title: '옮기기',
-          onTap: widget.onMove,
-        ),
-        
-        _ActionMenuItem(
-          icon: Icons.delete_outline,
-          title: '휴지통으로 이동',
-          iconColor: Colors.red,
-          textColor: Colors.red,
-          onTap: widget.onDelete,
-        ),
-      ],
-    ),
-  );
-}
-  
+          _ActionMenuItem(
+            icon: isFavorite ? Icons.star : Icons.star_border,
+            title: isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가',
+            iconColor: Colors.amber,
+            onTap: () {
+              widget.onFavoriteToggle();
+              Navigator.pop(context);
+            },
+          ),
+          
+          _ActionMenuItem(
+            icon: Icons.link,
+            title: '링크 복사',
+            onTap: _copyPageLink,
+          ),
+          
+          _ActionMenuItem(
+            icon: Icons.content_copy,
+            title: '복제',
+            onTap: widget.onDuplicate,
+          ),
+          
+          _ActionMenuItem(
+            icon: Icons.drive_file_move_outline,
+            title: '옮기기',
+            onTap: widget.onMove,
+          ),
+          
+          _ActionMenuItem(
+            icon: Icons.delete_outline,
+            title: '휴지통으로 이동',
+            iconColor: Colors.red,
+            textColor: Colors.red,
+            onTap: widget.onDelete,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _FontButton extends StatelessWidget {

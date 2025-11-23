@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../utils/font_provider.dart';
 
+
 class TodoListBlock extends StatefulWidget {
   final bool isChecked;
   final String content;
@@ -10,6 +11,7 @@ class TodoListBlock extends StatefulWidget {
   final Function(bool) onCheckedChanged;
   final Function(String) onContentChanged;
   final Function()? onEnterPressed;
+  final Function()? onBackspacePressed;
 
   const TodoListBlock({
     super.key,
@@ -19,6 +21,7 @@ class TodoListBlock extends StatefulWidget {
     required this.onCheckedChanged,
     required this.onContentChanged,
     this.onEnterPressed,
+    this.onBackspacePressed,
   });
 
   @override
@@ -33,14 +36,34 @@ class _TodoListBlockState extends State<TodoListBlock> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.content);
-    _focusNode = FocusNode();
+    _focusNode = FocusNode(
+      onKeyEvent: _handleKeyEvent,
+    );
     
-    // 자동 포커스
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.content.isEmpty) {
         _focusNode.requestFocus();
       }
     });
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.enter) {
+        if (widget.onEnterPressed != null) {
+          widget.onEnterPressed!();
+        }
+        return KeyEventResult.handled;
+      }
+      
+      if (event.logicalKey == LogicalKeyboardKey.backspace) {
+        if (_controller.text.isEmpty && widget.onBackspacePressed != null) {
+          widget.onBackspacePressed!();
+          return KeyEventResult.handled;
+        }
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -71,31 +94,20 @@ class _TodoListBlockState extends State<TodoListBlock> {
             ),
           ),
           Expanded(
-            child: RawKeyboardListener(
-              focusNode: FocusNode(),
-              onKey: (RawKeyEvent event) {
-                if (event is RawKeyDownEvent) {
-                  if (event.logicalKey == LogicalKeyboardKey.enter) {
-                    if (widget.onEnterPressed != null) {
-                      widget.onEnterPressed!();
-                    }
-                  }
-                }
-              },
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                style: fontProvider.getTextStyle(fontFamily, fontSize: 16).copyWith(
-                  decoration: widget.isChecked ? TextDecoration.lineThrough : null,
-                  color: widget.isChecked ? Colors.grey : Colors.black,
-                ),
-                decoration: const InputDecoration(
-                  hintText: '할 일',
-                  border: InputBorder.none,
-                ),
-                maxLines: null,
-                onChanged: widget.onContentChanged,
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              style: fontProvider.getTextStyle(fontFamily, fontSize: 16).copyWith(
+                decoration: widget.isChecked ? TextDecoration.lineThrough : null,
+                color: widget.isChecked ? Colors.grey : Colors.black,
               ),
+              decoration: const InputDecoration(
+                hintText: '할 일',
+                border: InputBorder.none,
+              ),
+              maxLines: 1,
+              textInputAction: TextInputAction.done,
+              onChanged: widget.onContentChanged,
             ),
           ),
         ],

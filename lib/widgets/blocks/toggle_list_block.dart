@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../utils/font_provider.dart';
+
 
 class ToggleListBlock extends StatefulWidget {
   final String title;
@@ -9,6 +11,7 @@ class ToggleListBlock extends StatefulWidget {
   final Function(String) onTitleChanged;
   final Function(String) onContentChanged;
   final Function()? onEnterPressed;
+  final Function()? onBackspacePressed;
 
   const ToggleListBlock({
     super.key,
@@ -18,6 +21,7 @@ class ToggleListBlock extends StatefulWidget {
     required this.onTitleChanged,
     required this.onContentChanged,
     this.onEnterPressed,
+    this.onBackspacePressed,
   });
 
   @override
@@ -36,8 +40,29 @@ class _ToggleListBlockState extends State<ToggleListBlock> {
     super.initState();
     _titleController = TextEditingController(text: widget.title);
     _contentController = TextEditingController(text: widget.content);
-    _titleFocusNode = FocusNode();
+    _titleFocusNode = FocusNode(
+      onKeyEvent: _handleKeyEvent,
+    );
     _contentFocusNode = FocusNode();
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.enter) {
+        if (widget.onEnterPressed != null) {
+          widget.onEnterPressed!();
+        }
+        return KeyEventResult.handled;
+      }
+      
+      if (event.logicalKey == LogicalKeyboardKey.backspace) {
+        if (_titleController.text.isEmpty && widget.onBackspacePressed != null) {
+          widget.onBackspacePressed!();
+          return KeyEventResult.handled;
+        }
+      }
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -84,12 +109,9 @@ class _ToggleListBlockState extends State<ToggleListBlock> {
                     hintText: '토글 제목',
                     border: InputBorder.none,
                   ),
+                  maxLines: 1,
+                  textInputAction: TextInputAction.done,
                   onChanged: widget.onTitleChanged,
-                  onSubmitted: (_) {
-                    if (widget.onEnterPressed != null) {
-                      widget.onEnterPressed!();
-                    }
-                  },
                 ),
               ),
             ],
