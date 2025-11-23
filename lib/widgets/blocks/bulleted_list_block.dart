@@ -10,6 +10,8 @@ class BulletedListBlock extends StatefulWidget {
   final Function(String) onChanged;
   final Function()? onEnterPressed;
   final Function()? onBackspacePressed;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const BulletedListBlock({
     super.key,
@@ -18,6 +20,8 @@ class BulletedListBlock extends StatefulWidget {
     required this.onChanged,
     this.onEnterPressed,
     this.onBackspacePressed,
+    this.textColor,
+    this.onTap,
   });
 
   @override
@@ -88,7 +92,11 @@ class _BulletedListBlockState extends State<BulletedListBlock> {
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: fontProvider.getTextStyle(fontFamily, fontSize: 16),
+              style: fontProvider.getTextStyle(
+                fontFamily, 
+                fontSize: 16,
+                color: widget.textColor ?? Colors.black,
+              ),
               decoration: const InputDecoration(
                 hintText: '목록 항목',
                 border: InputBorder.none,
@@ -96,6 +104,7 @@ class _BulletedListBlockState extends State<BulletedListBlock> {
               maxLines: 1,
               textInputAction: TextInputAction.done,
               onChanged: widget.onChanged,
+              onTap: widget.onTap,
             ),
           ),
         ],

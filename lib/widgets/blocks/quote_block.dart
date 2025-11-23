@@ -2,22 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/font_provider.dart';
 
-class QuoteBlock extends StatelessWidget {
+
+class QuoteBlock extends StatefulWidget {
   final String content;
   final String pageId;
   final Function(String) onChanged;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const QuoteBlock({
     super.key,
     required this.content,
     required this.pageId,
     required this.onChanged,
+    this.textColor,
+    this.onTap,
   });
+
+  @override
+  State<QuoteBlock> createState() => _QuoteBlockState();
+}
+
+class _QuoteBlockState extends State<QuoteBlock> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.content);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final fontProvider = Provider.of<FontProvider>(context);
-    final fontFamily = fontProvider.getFontFamily(pageId);
+    final fontFamily = fontProvider.getFontFamily(widget.pageId);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -26,18 +50,21 @@ class QuoteBlock extends StatelessWidget {
         border: Border(left: BorderSide(color: Colors.grey, width: 4)),
       ),
       child: TextField(
-        controller: TextEditingController(text: content)
-          ..selection = TextSelection.collapsed(offset: content.length),
-        style: fontProvider.getTextStyle(fontFamily, fontSize: 16).copyWith(
+        controller: _controller,
+        style: fontProvider.getTextStyle(
+          fontFamily, 
+          fontSize: 16,
+          color: widget.textColor ?? Colors.grey.shade700,
+        ).copyWith(
           fontStyle: FontStyle.italic,
-          color: Colors.grey.shade700,
         ),
         decoration: const InputDecoration(
           hintText: '인용문',
           border: InputBorder.none,
         ),
         maxLines: null,
-        onChanged: onChanged,
+        onChanged: widget.onChanged,
+        onTap: widget.onTap,
       ),
     );
   }

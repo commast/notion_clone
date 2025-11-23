@@ -12,6 +12,8 @@ class TodoListBlock extends StatefulWidget {
   final Function(String) onContentChanged;
   final Function()? onEnterPressed;
   final Function()? onBackspacePressed;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const TodoListBlock({
     super.key,
@@ -22,6 +24,8 @@ class TodoListBlock extends StatefulWidget {
     required this.onContentChanged,
     this.onEnterPressed,
     this.onBackspacePressed,
+    this.textColor,
+    this.onTap,
   });
 
   @override
@@ -97,9 +101,13 @@ class _TodoListBlockState extends State<TodoListBlock> {
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: fontProvider.getTextStyle(fontFamily, fontSize: 16).copyWith(
+              style: fontProvider.getTextStyle(
+                fontFamily, 
+                fontSize: 16,
+                color: widget.textColor ?? Colors.black,
+              ).copyWith(
                 decoration: widget.isChecked ? TextDecoration.lineThrough : null,
-                color: widget.isChecked ? Colors.grey : Colors.black,
+                color: widget.isChecked ? Colors.grey : (widget.textColor ?? Colors.black),
               ),
               decoration: const InputDecoration(
                 hintText: '할 일',
@@ -108,6 +116,7 @@ class _TodoListBlockState extends State<TodoListBlock> {
               maxLines: 1,
               textInputAction: TextInputAction.done,
               onChanged: widget.onContentChanged,
+              onTap: widget.onTap,
             ),
           ),
         ],

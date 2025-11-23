@@ -2,22 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/font_provider.dart';
 
-class CalloutBlock extends StatelessWidget {
+
+class CalloutBlock extends StatefulWidget {
   final String content;
   final String pageId;
   final Function(String) onChanged;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const CalloutBlock({
     super.key,
     required this.content,
     required this.pageId,
     required this.onChanged,
+    this.textColor,
+    this.onTap,
   });
+
+  @override
+  State<CalloutBlock> createState() => _CalloutBlockState();
+}
+
+class _CalloutBlockState extends State<CalloutBlock> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.content);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final fontProvider = Provider.of<FontProvider>(context);
-    final fontFamily = fontProvider.getFontFamily(pageId);
+    final fontFamily = fontProvider.getFontFamily(widget.pageId);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -30,19 +54,25 @@ class CalloutBlock extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('💡', style: TextStyle(fontSize: 24)),
-          const SizedBox(width: 12),
+          const Padding(
+            padding: EdgeInsets.only(right: 12.0, top: 2.0),
+            child: Icon(Icons.lightbulb_outline, color: Colors.blue, size: 20),
+          ),
           Expanded(
             child: TextField(
-              controller: TextEditingController(text: content)
-                ..selection = TextSelection.collapsed(offset: content.length),
-              style: fontProvider.getTextStyle(fontFamily, fontSize: 15),
+              controller: _controller,
+              style: fontProvider.getTextStyle(
+                fontFamily, 
+                fontSize: 16,
+                color: widget.textColor ?? Colors.black,
+              ),
               decoration: const InputDecoration(
-                hintText: '콜아웃 내용',
+                hintText: '콜아웃',
                 border: InputBorder.none,
               ),
               maxLines: null,
-              onChanged: onChanged,
+              onChanged: widget.onChanged,
+              onTap: widget.onTap,
             ),
           ),
         ],

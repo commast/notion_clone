@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 
+
 class KeyboardAccessoryBar extends StatelessWidget {
   final VoidCallback onPlusPressed;
-  final VoidCallback onImagePressed; // ★ 추가됨
+  final VoidCallback onImagePressed;
+  final VoidCallback onUndoPressed;         // 추가
+  final VoidCallback onDeletePressed;       // 추가
+  final VoidCallback onColorPressed;        // 추가
+  final bool canUndo;                       // 추가
 
   const KeyboardAccessoryBar({
     required this.onPlusPressed,
-    required this.onImagePressed, // ★ 추가됨
+    required this.onImagePressed,
+    required this.onUndoPressed,
+    required this.onDeletePressed,
+    required this.onColorPressed,
+    this.canUndo = false,
     super.key,
   });
 
@@ -21,19 +30,34 @@ class KeyboardAccessoryBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0),
       child: Row(
         children: [
-          // 1. 기존 + 버튼
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: Colors.black),
             onPressed: onPlusPressed,
           ),
           
-          // 2. ★ 추가된 이미지 버튼 ★
           IconButton(
             icon: const Icon(Icons.image_outlined, color: Colors.black54),
             onPressed: onImagePressed,
           ),
 
-          // 3. 텍스트 필드 (기존 코드)
+          IconButton(
+            icon: Icon(
+              Icons.undo,
+              color: canUndo ? Colors.black54 : Colors.grey.shade300,
+            ),
+            onPressed: canUndo ? onUndoPressed : null,
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: onDeletePressed,
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.palette_outlined, color: Colors.black54),
+            onPressed: onColorPressed,
+          ),
+
           const Expanded(
             child: TextField(
               decoration: InputDecoration(
@@ -45,7 +69,6 @@ class KeyboardAccessoryBar extends StatelessWidget {
             ),
           ),
           
-          // 4. 키보드 내리기 버튼 (기존 코드)
           IconButton(
             icon: const Icon(Icons.keyboard_hide, color: Colors.black54),
             onPressed: () {

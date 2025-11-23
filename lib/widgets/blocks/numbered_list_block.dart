@@ -11,6 +11,8 @@ class NumberedListBlock extends StatefulWidget {
   final Function(String) onChanged;
   final Function()? onEnterPressed;
   final Function()? onBackspacePressed;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const NumberedListBlock({
     super.key,
@@ -20,6 +22,8 @@ class NumberedListBlock extends StatefulWidget {
     required this.onChanged,
     this.onEnterPressed,
     this.onBackspacePressed,
+    this.textColor,
+    this.onTap,
   });
 
   @override
@@ -81,7 +85,11 @@ class _NumberedListBlockState extends State<NumberedListBlock> {
               width: 28,
               child: Text(
                 '${widget.number}.',
-                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+                style: TextStyle(
+                  fontWeight: FontWeight.w500, 
+                  fontSize: 16,
+                  color: widget.textColor ?? Colors.black,
+                ),
               ),
             ),
           ),
@@ -89,7 +97,11 @@ class _NumberedListBlockState extends State<NumberedListBlock> {
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: fontProvider.getTextStyle(fontFamily, fontSize: 16),
+              style: fontProvider.getTextStyle(
+                fontFamily, 
+                fontSize: 16,
+                color: widget.textColor ?? Colors.black,
+              ),
               decoration: const InputDecoration(
                 hintText: '목록 항목',
                 border: InputBorder.none,
@@ -97,6 +109,7 @@ class _NumberedListBlockState extends State<NumberedListBlock> {
               maxLines: 1,
               textInputAction: TextInputAction.done,
               onChanged: widget.onChanged,
+              onTap: widget.onTap,
             ),
           ),
         ],

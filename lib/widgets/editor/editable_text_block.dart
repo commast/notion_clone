@@ -8,6 +8,8 @@ class EditableTextBlock extends StatefulWidget {
   final FocusNode? focusNode;
   final Function(String) onChanged;
   final String? pageId;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const EditableTextBlock({
     required this.initialText,
@@ -15,6 +17,8 @@ class EditableTextBlock extends StatefulWidget {
     required this.onChanged,
     this.focusNode,
     this.pageId,
+    this.textColor,
+    this.onTap,
     super.key,
   });
 
@@ -23,29 +27,18 @@ class EditableTextBlock extends StatefulWidget {
 }
 
 class _EditableTextBlockState extends State<EditableTextBlock> {
-  late FocusNode _focusNode;
   late TextEditingController _controller;
-  bool _hasFocus = false;
+  late FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
-    _focusNode = widget.focusNode ?? FocusNode();
     _controller = TextEditingController(text: widget.initialText);
-    _focusNode.addListener(_handleFocusChange);
-  }
-
-  void _handleFocusChange() {
-    if (_focusNode.hasFocus != _hasFocus) {
-      setState(() {
-        _hasFocus = _focusNode.hasFocus;
-      });
-    }
+    _focusNode = widget.focusNode ?? FocusNode();
   }
 
   @override
   void dispose() {
-    _focusNode.removeListener(_handleFocusChange);
     if (widget.focusNode == null) {
       _focusNode.dispose();
     }
@@ -55,52 +48,34 @@ class _EditableTextBlockState extends State<EditableTextBlock> {
 
   @override
   Widget build(BuildContext context) {
-    // 글꼴 Provider 가져오기
     final fontProvider = Provider.of<FontProvider>(context);
-    final currentFont = widget.pageId != null 
-        ? fontProvider.getFontFamily(widget.pageId!)
+    final fontFamily = widget.pageId != null 
+        ? fontProvider.getFontFamily(widget.pageId!) 
         : FontFamily.basic;
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: widget.isTitle ? 20.0 : 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!widget.isTitle)
-            Container(
-              width: 20,
-              height: 20,
-              margin: const EdgeInsets.only(top: 10),
-            ),
-          Expanded(
-            child: TextField(
-              focusNode: _focusNode,
-              controller: _controller,
-              onChanged: widget.onChanged,
-              keyboardType: TextInputType.multiline,
-              maxLines: null,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: _hasFocus
-                    ? ''
-                    : (widget.isTitle ? '제목을 입력하세요' : '/ 를 입력하여 블록을 추가하세요'),
-                hintStyle: TextStyle(
-                  color: Colors.grey.withOpacity(0.6),
-                  fontWeight: FontWeight.normal,
-                ),
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              // 글꼴 적용
-              style: fontProvider.getTextStyle(
-                currentFont,
-                fontSize: widget.isTitle ? 32 : 18,
-                fontWeight: widget.isTitle ? FontWeight.bold : FontWeight.normal,
-                color: Colors.black,
-              ),
-            ),
+      child: TextField(
+        focusNode: _focusNode,
+        controller: _controller,
+        onChanged: widget.onChanged,
+        onTap: widget.onTap,
+        keyboardType: TextInputType.multiline,
+        maxLines: null,
+        style: fontProvider.getTextStyle(
+          fontFamily,
+          fontSize: widget.isTitle ? 32 : 18,
+          fontWeight: widget.isTitle ? FontWeight.bold : FontWeight.normal,
+          color: widget.textColor ?? Colors.black,
+        ),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: widget.isTitle ? '제목 없음' : '입력하세요',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: widget.isTitle ? 32 : 18,
           ),
-        ],
+        ),
       ),
     );
   }

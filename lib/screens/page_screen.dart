@@ -12,6 +12,7 @@ import '../widgets/common/notion_bottom_bar.dart';
 import '../widgets/editor/editable_text_block.dart';
 import '../widgets/editor/keyboard_accessory_bar.dart';
 import '../widgets/editor/block_selector_modal.dart';
+import '../widgets/editor/color_picker_modal.dart';
 
 import '../widgets/blocks/notion_table.dart';
 import '../widgets/blocks/code_block.dart';
@@ -60,6 +61,11 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   late List<BlockData> _currentBlocks;
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
+  
+  final List<List<BlockData>> _undoStack = [];
+  int _currentFocusedBlockIndex = -1;
+
+  bool get canUndo => _undoStack.isNotEmpty;
 
   @override
   void initState() {
@@ -73,10 +79,149 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     super.dispose();
   }
 
+  // 같은 부모를 가진 형제 페이지들 가져오기
+  List<PageData> get _siblingPages {
+    if (widget.allPages == null) return [];
+    
+    return widget.allPages!.where((p) => 
+      p.parentId == widget.page.parentId
+    ).toList()
+      ..sort((a, b) => a.lastEdited.compareTo(b.lastEdited));
+  }
+
+  // 이전 페이지 가져오기
+  PageData? get _previousPage {
+    final siblings = _siblingPages;
+    if (siblings.isEmpty) return null;
+    
+    final currentIndex = siblings.indexWhere((p) => p.id == widget.page.id);
+    if (currentIndex > 0) {
+      return siblings[currentIndex - 1];
+    }
+    return null;
+  }
+
+  // 다음 페이지 가져오기
+  PageData? get _nextPage {
+    final siblings = _siblingPages;
+    if (siblings.isEmpty) return null;
+    
+    final currentIndex = siblings.indexWhere((p) => p.id == widget.page.id);
+    if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
+      return siblings[currentIndex + 1];
+    }
+    return null;
+  }
+
+  // 페이지 이동
+  void _navigateToPage(PageData page) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotionPageScreen(
+          page: page,
+          onNewPage: widget.onNewPage,
+          onPageChanged: widget.onPageChanged,
+          onFavoriteToggle: widget.onFavoriteToggle,
+          onDuplicate: widget.onDuplicate,
+          onMove: widget.onMove,
+          onDelete: widget.onDelete,
+          allPages: widget.allPages,
+          onPageCreated: widget.onPageCreated,
+        ),
+      ),
+    );
+  }
+
+  void _saveState() {
+    final stateCopy = _currentBlocks.map((block) {
+      return BlockData(
+        type: block.type,
+        content: _copyContent(block.content),
+        textColor: block.textColor,
+        backgroundColor: block.backgroundColor,
+      );
+    }).toList();
+    
+    _undoStack.add(stateCopy);
+    
+    if (_undoStack.length > 20) {
+      _undoStack.removeAt(0);
+    }
+  }
+
+  dynamic _copyContent(dynamic content) {
+    if (content is Map) {
+      return Map.from(content);
+    } else if (content is List) {
+      return List.from(content);
+    }
+    return content;
+  }
+
+  void _undo() {
+    if (canUndo) {
+      setState(() {
+        _currentBlocks = _undoStack.removeLast();
+      });
+    }
+  }
+
+  void _deleteCurrentLine() {
+    if (_currentFocusedBlockIndex >= 0 && 
+        _currentFocusedBlockIndex < _currentBlocks.length) {
+      _saveState();
+      setState(() {
+        final block = _currentBlocks[_currentFocusedBlockIndex];
+        _currentBlocks[_currentFocusedBlockIndex] = BlockData(
+          type: 'text',
+          content: '',
+          textColor: block.textColor,
+          backgroundColor: block.backgroundColor,
+        );
+      });
+    }
+  }
+
+  void _showColorPicker() {
+    if (_currentFocusedBlockIndex < 0 || _currentFocusedBlockIndex >= _currentBlocks.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('색상을 적용할 블록을 먼저 선택해주세요'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return ColorPickerModal(
+          onColorSelected: (textColor, bgColor) {
+            _saveState();
+            setState(() {
+              final block = _currentBlocks[_currentFocusedBlockIndex];
+              if (textColor != null) {
+                block.textColor = textColor;
+              }
+              if (bgColor != null) {
+                block.backgroundColor = bgColor;
+              }
+            });
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
+        _saveState();
         setState(() {
           _currentBlocks.add(BlockData(type: 'image', content: pickedFile.path));
         });
@@ -125,6 +270,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _addBlock(String blockType) {
+    _saveState();
     setState(() {
       switch (blockType) {
         case 'text':
@@ -207,6 +353,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             builder: (BuildContext context) {
               return TableSizeSelectorModal(
                 onTableCreated: (rows, cols) {
+                  _saveState();
                   setState(() {
                     _currentBlocks.add(BlockData(type: 'table', content: {'rows': rows, 'cols': cols}));
                   });
@@ -333,6 +480,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final bool isKeyboardVisible = keyboardHeight > 0;
     final double bottomBarHeight = 50.0 + MediaQuery.of(context).padding.bottom;
+    
+    final previousPage = _previousPage;
+    final nextPage = _nextPage;
+    final hasNavigation = previousPage != null || nextPage != null;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -368,323 +519,451 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         ],
       ),
 
-      body: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        itemCount: _currentBlocks.length + 1,
-        itemBuilder: (context, index) {
-          if (index == _currentBlocks.length) {
-            return SizedBox(height: isKeyboardVisible ? 0 : bottomBarHeight);
-          }
-
-          final block = _currentBlocks[index];
-
-          switch (block.type) {
-            case 'title':
-              return EditableTextBlock(
-                initialText: block.content as String,
-                isTitle: true,
-                focusNode: _focusNode,
-                pageId: widget.page.id,
-                onChanged: (val) {
-                  block.content = val;
-                  widget.page.title = val;
-                  widget.page.lastEdited = DateTime.now();
-                  widget.onPageChanged?.call();
-                  setState(() {});
-                },
-              );
-            
-            case 'text':
-              return EditableTextBlock(
-                key: ValueKey(block),
-                initialText: block.content as String,
-                isTitle: false,
-                pageId: widget.page.id,
-                onChanged: (val) => block.content = val,
-              );
-            
-            case 'heading1':
-              return HeadingBlock(
-                key: ValueKey(block),
-                level: 1,
-                content: block.content as String,
-                pageId: widget.page.id,
-                onChanged: (val) {
-                  block.content = val;
-                  widget.page.lastEdited = DateTime.now();
-                },
-              );
-            
-            case 'heading2':
-              return HeadingBlock(
-                key: ValueKey(block),
-                level: 2,
-                content: block.content as String,
-                pageId: widget.page.id,
-                onChanged: (val) {
-                  block.content = val;
-                  widget.page.lastEdited = DateTime.now();
-                },
-              );
-            
-            case 'heading3':
-              return HeadingBlock(
-                key: ValueKey(block),
-                level: 3,
-                content: block.content as String,
-                pageId: widget.page.id,
-                onChanged: (val) {
-                  block.content = val;
-                  widget.page.lastEdited = DateTime.now();
-                },
-              );
-            
-            case 'bulleted_list':
-              return BulletedListBlock(
-                key: ValueKey(block),
-                content: block.content as String,
-                pageId: widget.page.id,
-                onChanged: (val) {
-                  setState(() {
-                    block.content = val;
-                  });
-                },
-                onEnterPressed: () {
-                  setState(() {
-                    final idx = _currentBlocks.indexOf(block);
-                    _currentBlocks.insert(idx + 1, BlockData(type: 'bulleted_list', content: ''));
-                  });
-                },
-                onBackspacePressed: () {
-                  setState(() {
-                    if ((block.content as String).isEmpty) {
-                      final idx = _currentBlocks.indexOf(block);
-                      // 일반 텍스트 블록으로 변환
-                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
-                    }
-                  });
-                },
-              );
-
-            
-            case 'numbered_list':
-              final data = block.content as Map<String, dynamic>;
-              
-              final currentIndex = _currentBlocks.indexOf(block);
-              
-              int displayNumber = 1;
-              for (int i = 0; i < currentIndex; i++) {
-                if (_currentBlocks[i].type == 'numbered_list') {
-                  displayNumber++;
-                }
+      body: Stack(
+        children: [
+          ListView.builder(
+            padding: EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              bottom: hasNavigation ? 70 : 0,
+            ),
+            itemCount: _currentBlocks.length + 1,
+            itemBuilder: (context, index) {
+              if (index == _currentBlocks.length) {
+                return SizedBox(height: isKeyboardVisible ? 0 : bottomBarHeight);
               }
-              
-              return NumberedListBlock(
-                key: ValueKey(block),
-                number: displayNumber,
-                content: data['text'] ?? '',
-                pageId: widget.page.id,
-                onChanged: (val) {
-                  setState(() {
-                    data['text'] = val;
-                    block.content = data;
-                  });
-                },
-                onEnterPressed: () {
-                  setState(() {
-                    final idx = _currentBlocks.indexOf(block);
-                    _currentBlocks.insert(
-                      idx + 1,
-                      BlockData(
-                        type: 'numbered_list',
-                        content: {'number': displayNumber + 1, 'text': ''},
-                      ),
-                    );
-                  });
-                },
-                onBackspacePressed: () {
-                  setState(() {
-                    if ((data['text'] ?? '').isEmpty) {
-                      final idx = _currentBlocks.indexOf(block);
-                      // 일반 텍스트 블록으로 변환
-                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
-                    }
-                  });
-                },
-              );
 
-            
-            case 'todo_list':
-              final data = block.content as Map<String, dynamic>;
-              return TodoListBlock(
-                key: ValueKey(block),
-                isChecked: data['checked'] ?? false,
-                content: data['text'] ?? '',
-                pageId: widget.page.id,
-                onCheckedChanged: (checked) {
-                  setState(() {
-                    data['checked'] = checked;
-                    block.content = data;
-                  });
-                },
-                onContentChanged: (val) {
-                  setState(() {
-                    data['text'] = val;
-                    block.content = data;
-                  });
-                },
-                onEnterPressed: () {
-                  setState(() {
-                    final idx = _currentBlocks.indexOf(block);
-                    _currentBlocks.insert(
-                      idx + 1,
-                      BlockData(
-                        type: 'todo_list',
-                        content: {'checked': false, 'text': ''},
-                      ),
-                    );
-                  });
-                },
-                onBackspacePressed: () {
-                  setState(() {
-                    if ((data['text'] ?? '').isEmpty) {
-                      final idx = _currentBlocks.indexOf(block);
-                      // 일반 텍스트 블록으로 변환
-                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
-                    }
-                  });
-                },
-              );
+              final block = _currentBlocks[index];
 
-            
-            case 'toggle_list':
-              final data = block.content as Map<String, dynamic>;
-              return ToggleListBlock(
-                key: ValueKey(block),
-                title: data['title'] ?? '',
-                content: data['content'] ?? '',
-                pageId: widget.page.id,
-                onTitleChanged: (val) {
-                  setState(() {
-                    data['title'] = val;
-                    block.content = data;
-                  });
-                },
-                onContentChanged: (val) {
-                  setState(() {
-                    data['content'] = val;
-                    block.content = data;
-                  });
-                },
-                onEnterPressed: () {
-                  setState(() {
-                    final idx = _currentBlocks.indexOf(block);
-                    _currentBlocks.insert(
-                      idx + 1,
-                      BlockData(
-                        type: 'toggle_list',
-                        content: {'title': '', 'content': ''},
-                      ),
-                    );
-                  });
-                },
-                onBackspacePressed: () {
-                  setState(() {
-                    if ((data['title'] ?? '').isEmpty) {
-                      final idx = _currentBlocks.indexOf(block);
-                      // 일반 텍스트 블록으로 변환
-                      _currentBlocks[idx] = BlockData(type: 'text', content: '');
-                    }
-                  });
-                },
-              );
+              Widget blockWidget;
 
-            
-            case 'callout':
-              return CalloutBlock(
-                key: ValueKey(block),
-                content: block.content as String,
-                pageId: widget.page.id,
-                onChanged: (val) => block.content = val,
-              );
-            
-            case 'quote':
-              return QuoteBlock(
-                key: ValueKey(block),
-                content: block.content as String,
-                pageId: widget.page.id,
-                onChanged: (val) => block.content = val,
-              );
-            
-            case 'divider':
-              return const DividerBlock();
-            
-            case 'page':
-              final contentStr = block.content as String;
-              final parts = contentStr.split('|');
-              final pageId = parts[0];
-              final pageTitle = parts.length > 1 ? parts[1] : '제목 없음';
-              
-              return PageLinkBlock(
-                key: ValueKey(block),
-                pageTitle: pageTitle,
-                onTap: () {
-                  PageData? targetPage;
-                  if (widget.allPages != null) {
-                    for (var p in widget.allPages!) {
-                      if (p.id == pageId) {
-                        targetPage = p;
-                        break;
-                      }
+              switch (block.type) {
+                case 'title':
+                  blockWidget = EditableTextBlock(
+                    initialText: block.content as String,
+                    isTitle: true,
+                    focusNode: _focusNode,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) {
+                      block.content = val;
+                      widget.page.title = val;
+                      widget.page.lastEdited = DateTime.now();
+                      widget.onPageChanged?.call();
+                      setState(() {});
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'text':
+                  blockWidget = EditableTextBlock(
+                    key: ValueKey(block),
+                    initialText: block.content as String,
+                    isTitle: false,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) => block.content = val,
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'heading1':
+                  blockWidget = HeadingBlock(
+                    key: ValueKey(block),
+                    level: 1,
+                    content: block.content as String,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) {
+                      block.content = val;
+                      widget.page.lastEdited = DateTime.now();
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'heading2':
+                  blockWidget = HeadingBlock(
+                    key: ValueKey(block),
+                    level: 2,
+                    content: block.content as String,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) {
+                      block.content = val;
+                      widget.page.lastEdited = DateTime.now();
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'heading3':
+                  blockWidget = HeadingBlock(
+                    key: ValueKey(block),
+                    level: 3,
+                    content: block.content as String,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) {
+                      block.content = val;
+                      widget.page.lastEdited = DateTime.now();
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'bulleted_list':
+                  blockWidget = BulletedListBlock(
+                    key: ValueKey(block),
+                    content: block.content as String,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) {
+                      setState(() {
+                        block.content = val;
+                      });
+                    },
+                    onEnterPressed: () {
+                      _saveState();
+                      setState(() {
+                        final idx = _currentBlocks.indexOf(block);
+                        _currentBlocks.insert(idx + 1, BlockData(type: 'bulleted_list', content: ''));
+                      });
+                    },
+                    onBackspacePressed: () {
+                      setState(() {
+                        if ((block.content as String).isEmpty) {
+                          _saveState();
+                          final idx = _currentBlocks.indexOf(block);
+                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                        }
+                      });
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'numbered_list':
+                  final data = block.content as Map<String, dynamic>;
+                  
+                  final currentIndex = _currentBlocks.indexOf(block);
+                  
+                  int displayNumber = 1;
+                  for (int i = 0; i < currentIndex; i++) {
+                    if (_currentBlocks[i].type == 'numbered_list') {
+                      displayNumber++;
                     }
                   }
                   
-                  if (targetPage != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => NotionPageScreen(
-                          page: targetPage!,
-                          onNewPage: widget.onNewPage,
-                          onPageChanged: widget.onPageChanged,
-                          onFavoriteToggle: widget.onFavoriteToggle,
-                          onDuplicate: widget.onDuplicate,
-                          onMove: widget.onMove,
-                          onDelete: widget.onDelete,
-                          allPages: widget.allPages,
-                          onPageCreated: widget.onPageCreated,
-                        ),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('페이지를 찾을 수 없습니다')),
-                    );
-                  }
-                },
+                  blockWidget = NumberedListBlock(
+                    key: ValueKey(block),
+                    number: displayNumber,
+                    content: data['text'] ?? '',
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) {
+                      setState(() {
+                        data['text'] = val;
+                        block.content = data;
+                      });
+                    },
+                    onEnterPressed: () {
+                      _saveState();
+                      setState(() {
+                        final idx = _currentBlocks.indexOf(block);
+                        _currentBlocks.insert(
+                          idx + 1,
+                          BlockData(
+                            type: 'numbered_list',
+                            content: {'number': displayNumber + 1, 'text': ''},
+                          ),
+                        );
+                      });
+                    },
+                    onBackspacePressed: () {
+                      setState(() {
+                        if ((data['text'] ?? '').isEmpty) {
+                          _saveState();
+                          final idx = _currentBlocks.indexOf(block);
+                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                        }
+                      });
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'todo_list':
+                  final data = block.content as Map<String, dynamic>;
+                  blockWidget = TodoListBlock(
+                    key: ValueKey(block),
+                    isChecked: data['checked'] ?? false,
+                    content: data['text'] ?? '',
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onCheckedChanged: (checked) {
+                      setState(() {
+                        data['checked'] = checked;
+                        block.content = data;
+                      });
+                    },
+                    onContentChanged: (val) {
+                      setState(() {
+                        data['text'] = val;
+                        block.content = data;
+                      });
+                    },
+                    onEnterPressed: () {
+                      _saveState();
+                      setState(() {
+                        final idx = _currentBlocks.indexOf(block);
+                        _currentBlocks.insert(
+                          idx + 1,
+                          BlockData(
+                            type: 'todo_list',
+                            content: {'checked': false, 'text': ''},
+                          ),
+                        );
+                      });
+                    },
+                    onBackspacePressed: () {
+                      setState(() {
+                        if ((data['text'] ?? '').isEmpty) {
+                          _saveState();
+                          final idx = _currentBlocks.indexOf(block);
+                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                        }
+                      });
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'toggle_list':
+                  final data = block.content as Map<String, dynamic>;
+                  blockWidget = ToggleListBlock(
+                    key: ValueKey(block),
+                    title: data['title'] ?? '',
+                    content: data['content'] ?? '',
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onTitleChanged: (val) {
+                      setState(() {
+                        data['title'] = val;
+                        block.content = data;
+                      });
+                    },
+                    onContentChanged: (val) {
+                      setState(() {
+                        data['content'] = val;
+                        block.content = data;
+                      });
+                    },
+                    onEnterPressed: () {
+                      _saveState();
+                      setState(() {
+                        final idx = _currentBlocks.indexOf(block);
+                        _currentBlocks.insert(
+                          idx + 1,
+                          BlockData(
+                            type: 'toggle_list',
+                            content: {'title': '', 'content': ''},
+                          ),
+                        );
+                      });
+                    },
+                    onBackspacePressed: () {
+                      setState(() {
+                        if ((data['title'] ?? '').isEmpty) {
+                          _saveState();
+                          final idx = _currentBlocks.indexOf(block);
+                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                        }
+                      });
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'callout':
+                  blockWidget = CalloutBlock(
+                    key: ValueKey(block),
+                    content: block.content as String,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) => block.content = val,
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'quote':
+                  blockWidget = QuoteBlock(
+                    key: ValueKey(block),
+                    content: block.content as String,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) => block.content = val,
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
+                
+                case 'divider':
+                  blockWidget = const DividerBlock();
+                  break;
+                
+                case 'page':
+                  final contentStr = block.content as String;
+                  final parts = contentStr.split('|');
+                  final pageId = parts[0];
+                  final pageTitle = parts.length > 1 ? parts[1] : '제목 없음';
+                  
+                  blockWidget = PageLinkBlock(
+                    key: ValueKey(block),
+                    pageTitle: pageTitle,
+                    onTap: () {
+                      PageData? targetPage;
+                      if (widget.allPages != null) {
+                        for (var p in widget.allPages!) {
+                          if (p.id == pageId) {
+                            targetPage = p;
+                            break;
+                          }
+                        }
+                      }
+                      
+                      if (targetPage != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NotionPageScreen(
+                              page: targetPage!,
+                              onNewPage: widget.onNewPage,
+                              onPageChanged: widget.onPageChanged,
+                              onFavoriteToggle: widget.onFavoriteToggle,
+                              onDuplicate: widget.onDuplicate,
+                              onMove: widget.onMove,
+                              onDelete: widget.onDelete,
+                              allPages: widget.allPages,
+                              onPageCreated: widget.onPageCreated,
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('페이지를 찾을 수 없습니다')),
+                        );
+                      }
+                    },
+                  );
+                  break;
+                
+                case 'code':
+                  blockWidget = CodeBlock(key: ValueKey(block));
+                  break;
+                
+                case 'chart':
+                  blockWidget = NotionChart(key: ValueKey(block));
+                  break;
+                
+                case 'table':
+                  final Map<String, int> size = block.content as Map<String, int>;
+                  blockWidget = NotionTable(
+                    rows: size['rows']!,
+                    cols: size['cols']!,
+                    key: ValueKey(block),
+                  );
+                  break;
+                
+                case 'image':
+                  blockWidget = ImageBlock(imageFile: File(block.content as String));
+                  break;
+                
+                default:
+                  blockWidget = const SizedBox.shrink();
+              }
+
+              return Container(
+                color: block.backgroundColor ?? Colors.transparent,
+                child: blockWidget,
               );
-            
-            case 'code':
-              return CodeBlock(key: ValueKey(block));
-            
-            case 'chart':
-              return NotionChart(key: ValueKey(block));
-            
-            case 'table':
-              final Map<String, int> size = block.content as Map<String, int>;
-              return NotionTable(
-                rows: size['rows']!,
-                cols: size['cols']!,
-                key: ValueKey(block),
-              );
-            
-            case 'image':
-              return ImageBlock(imageFile: File(block.content as String));
-            
-            default:
-              return const SizedBox.shrink();
-          }
-        },
+            },
+          ),
+
+          // 페이지 네비게이션 버튼 (하단 우측)
+          if (hasNavigation && !isKeyboardVisible)
+            Positioned(
+              right: 16,
+              bottom: bottomBarHeight + 70,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (previousPage != null)
+                    _NavigationButton(
+                      icon: Icons.arrow_upward,
+                      label: '이전',
+                      pageTitle: previousPage.title,
+                      onPressed: () => _navigateToPage(previousPage),
+                    ),
+                  
+                  if (previousPage != null && nextPage != null)
+                    const SizedBox(height: 8),
+                  
+                  if (nextPage != null)
+                    _NavigationButton(
+                      icon: Icons.arrow_downward,
+                      label: '다음',
+                      pageTitle: nextPage.title,
+                      onPressed: () => _navigateToPage(nextPage),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
 
       bottomSheet: Column(
@@ -694,6 +973,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             KeyboardAccessoryBar(
               onPlusPressed: _showBlockSelector,
               onImagePressed: _showImagePickerModal,
+              onUndoPressed: _undo,
+              onDeletePressed: _deleteCurrentLine,
+              onColorPressed: _showColorPicker,
+              canUndo: canUndo,
             )
           else
             NotionBottomBar(
@@ -720,6 +1003,76 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 }
 
+// 페이지 네비게이션 버튼 위젯
+class _NavigationButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String pageTitle;
+  final VoidCallback onPressed;
+
+  const _NavigationButton({
+    required this.icon,
+    required this.label,
+    required this.pageTitle,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: Colors.blue),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      pageTitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// 나머지 Dialog 클래스들 (이전과 동일)
 class _PageNavigationDialog extends StatefulWidget {
   final List<PageData> allPages;
   final PageData currentPage;
@@ -944,11 +1297,6 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
               Text(
                 pageId,
                 style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '💡 검색창에 붙여넣기하여 페이지를 찾으세요',
-                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
               ),
             ],
           ),

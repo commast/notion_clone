@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 
 // 기존 블록 데이터 모델
 class BlockData {
-  final String type; 
-  dynamic content; // 블록의 실제 데이터
+  String type;
+  dynamic content;
+  Color? textColor;        // 추가
+  Color? backgroundColor;  // 추가
 
-  BlockData({required this.type, this.content});
+  BlockData({
+    required this.type,
+    required this.content,
+    this.textColor,
+    this.backgroundColor,
+  });
 }
+
 
 // 페이지 메타데이터 모델
 class PageMetadata {
@@ -23,7 +31,8 @@ class PageData {
   bool isFavorite; 
   bool isExpanded; 
   List<PageData> subPages; 
-  PageData? parentPage; 
+  PageData? parentPage;
+  String? parentId; 
 
   PageData({
     required this.id,
@@ -31,6 +40,7 @@ class PageData {
     required this.lastEdited,
     this.isFavorite = false,
     this.isExpanded = false,
+    this.parentId,
     List<PageData>? subPages,
     this.parentPage,
   }) : subPages = subPages ?? [];

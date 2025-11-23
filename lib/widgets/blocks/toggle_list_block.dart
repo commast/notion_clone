@@ -12,6 +12,8 @@ class ToggleListBlock extends StatefulWidget {
   final Function(String) onContentChanged;
   final Function()? onEnterPressed;
   final Function()? onBackspacePressed;
+  final Color? textColor;
+  final VoidCallback? onTap;
 
   const ToggleListBlock({
     super.key,
@@ -22,6 +24,8 @@ class ToggleListBlock extends StatefulWidget {
     required this.onContentChanged,
     this.onEnterPressed,
     this.onBackspacePressed,
+    this.textColor,
+    this.onTap,
   });
 
   @override
@@ -104,7 +108,12 @@ class _ToggleListBlockState extends State<ToggleListBlock> {
                 child: TextField(
                   controller: _titleController,
                   focusNode: _titleFocusNode,
-                  style: fontProvider.getTextStyle(fontFamily, fontSize: 16, fontWeight: FontWeight.w500),
+                  style: fontProvider.getTextStyle(
+                    fontFamily, 
+                    fontSize: 16, 
+                    fontWeight: FontWeight.w500,
+                    color: widget.textColor ?? Colors.black,
+                  ),
                   decoration: const InputDecoration(
                     hintText: '토글 제목',
                     border: InputBorder.none,
@@ -112,6 +121,7 @@ class _ToggleListBlockState extends State<ToggleListBlock> {
                   maxLines: 1,
                   textInputAction: TextInputAction.done,
                   onChanged: widget.onTitleChanged,
+                  onTap: widget.onTap,
                 ),
               ),
             ],
@@ -122,7 +132,11 @@ class _ToggleListBlockState extends State<ToggleListBlock> {
               child: TextField(
                 controller: _contentController,
                 focusNode: _contentFocusNode,
-                style: fontProvider.getTextStyle(fontFamily, fontSize: 15),
+                style: fontProvider.getTextStyle(
+                  fontFamily, 
+                  fontSize: 15,
+                  color: widget.textColor ?? Colors.black,
+                ),
                 decoration: const InputDecoration(
                   hintText: '내용 입력...',
                   border: InputBorder.none,
