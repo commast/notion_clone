@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "794411661036",
+    "project_id": "notion-clone-2025",
+    "storage_bucket": "notion-clone-2025.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794411661036:android:c5f3d3a8298c1733e657c9",
+        "android_client_info": {
+          "package_name": "com.example.notion_clone_2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpjCHGH4C89vhyhzu-fKuKwam8Zn-OpJU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

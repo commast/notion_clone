@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_links/app_links.dart';
+import 'package:firebase_core/firebase_core.dart';  // 추가
+import 'firebase_options.dart';  // 추가
 import 'dart:async';
 
 // 기존 import
@@ -8,14 +10,20 @@ import 'screens/home_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/font_provider.dart';
 import 'utils/app_theme.dart';
-// 추가: Stub 서버 및 레포지토리 import
+// 수정: FirestoreApiService로 변경
 import 'repositories/page_repository.dart';
-import 'services/stub_api_service.dart';
+import 'services/firestore_api_service.dart';  // 변경
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final apiService = StubApiService();
+  // Firebase 초기화
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // FirestoreApiService로 변경
+  final apiService = FirestoreApiService();
   final pageRepository = PageRepository(apiService);
 
   runApp(
@@ -99,12 +107,10 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      // 홈 화면에서 Provider(PageRepository)로 데이터 주입!
-      home: const NotionHomeScreen(), // 내부에서 PageRepository를 Provider로 받음
+      home: const NotionHomeScreen(),
     );
   }
 }
-
 
 // 딥링크 상태 관리를 위한 Provider
 class DeepLinkProvider with ChangeNotifier {
