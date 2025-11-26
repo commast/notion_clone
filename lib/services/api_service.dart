@@ -23,4 +23,11 @@ abstract class ApiService {
   
   /// 즐겨찾기 토글
   Future<void> toggleFavorite(String pageId, bool isFavorite);
+  
+  /// 휴지통 관련 메서드 추가
+  Future<void> moveToTrash(String pageId);
+  Future<List<Map<String, dynamic>>> fetchTrash();
+  Future<void> restoreFromTrash(String pageId);
+  Future<void> permanentlyDelete(String pageId);
+  Future<void> emptyTrash();
 }

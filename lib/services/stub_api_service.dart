@@ -2,10 +2,13 @@
 import 'api_service.dart';
 import 'package:flutter/material.dart';
 
+
 class StubApiService implements ApiService {
   // 인메모리 데이터 저장소
   final Map<String, Map<String, dynamic>> _pages = {};
   final Map<String, List<Map<String, dynamic>>> _blocks = {};
+  final Map<String, Map<String, dynamic>> _trash = {};  // ✅ 추가: 휴지통 저장소
+  final Map<String, List<Map<String, dynamic>>> _trashBlocks = {};  // ✅ 추가: 휴지통 블록
   
   StubApiService() {
     _initializeDummyData();
@@ -199,5 +202,94 @@ class StubApiService implements ApiService {
     _pages[pageId]!['lastEdited'] = DateTime.now().toIso8601String();
     
     debugPrint('✅ [Stub API] 즐겨찾기 업데이트 완료');
+  }
+
+  // ✅ 아래 휴지통 관련 메서드 추가
+
+  @override
+  Future<void> moveToTrash(String pageId) async {
+    debugPrint('📡 [Stub API] moveToTrash 호출: $pageId');
+    await _simulateNetworkDelay();
+    
+    if (!_pages.containsKey(pageId)) {
+      throw Exception('페이지를 찾을 수 없습니다: $pageId');
+    }
+    
+    // 휴지통으로 이동
+    _trash[pageId] = {
+      ..._pages[pageId]!,
+      'deletedAt': DateTime.now().toIso8601String(),
+    };
+    
+    // 블록도 함께 이동
+    if (_blocks.containsKey(pageId)) {
+      _trashBlocks[pageId] = _blocks[pageId]!;
+      _blocks.remove(pageId);
+    }
+    
+    // 원본 페이지 삭제
+    _pages.remove(pageId);
+    
+    debugPrint('✅ [Stub API] 휴지통 이동 완료');
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchTrash() async {
+    debugPrint('📡 [Stub API] fetchTrash 호출');
+    await _simulateNetworkDelay();
+    
+    final trashPages = _trash.values.toList();
+    debugPrint('✅ [Stub API] ${trashPages.length}개 휴지통 페이지 반환');
+    return trashPages;
+  }
+
+  @override
+  Future<void> restoreFromTrash(String pageId) async {
+    debugPrint('📡 [Stub API] restoreFromTrash 호출: $pageId');
+    await _simulateNetworkDelay();
+    
+    if (!_trash.containsKey(pageId)) {
+      throw Exception('휴지통에서 페이지를 찾을 수 없습니다: $pageId');
+    }
+    
+    // 페이지 복원
+    final restoredPage = Map<String, dynamic>.from(_trash[pageId]!);
+    restoredPage.remove('deletedAt');
+    restoredPage['lastEdited'] = DateTime.now().toIso8601String();
+    _pages[pageId] = restoredPage;
+    
+    // 블록도 복원
+    if (_trashBlocks.containsKey(pageId)) {
+      _blocks[pageId] = _trashBlocks[pageId]!;
+      _trashBlocks.remove(pageId);
+    }
+    
+    // 휴지통에서 제거
+    _trash.remove(pageId);
+    
+    debugPrint('✅ [Stub API] 페이지 복원 완료');
+  }
+
+  @override
+  Future<void> permanentlyDelete(String pageId) async {
+    debugPrint('📡 [Stub API] permanentlyDelete 호출: $pageId');
+    await _simulateNetworkDelay();
+    
+    _trash.remove(pageId);
+    _trashBlocks.remove(pageId);
+    
+    debugPrint('✅ [Stub API] 영구 삭제 완료');
+  }
+
+  @override
+  Future<void> emptyTrash() async {
+    debugPrint('📡 [Stub API] emptyTrash 호출');
+    await _simulateNetworkDelay();
+    
+    final count = _trash.length;
+    _trash.clear();
+    _trashBlocks.clear();
+    
+    debugPrint('✅ [Stub API] 휴지통 비우기 완료: $count개 삭제');
   }
 }

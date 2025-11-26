@@ -181,4 +181,191 @@ class FirestoreApiService implements ApiService {
       rethrow;
     }
   }
+  // FirestoreApiService 클래스에 추가
+
+  /// 페이지를 휴지통으로 이동 (삭제 대신)
+  Future<void> moveToTrash(String pageId) async {
+    try {
+      // 1. 원본 페이지 데이터 가져오기
+      final pageDoc = await _firestore.collection('pages').doc(pageId).get();
+      
+      if (!pageDoc.exists) {
+        throw Exception('페이지를 찾을 수 없습니다: $pageId');
+      }
+
+      final pageData = pageDoc.data()!;
+
+      // 2. 휴지통에 복사
+      await _firestore.collection('trash').doc(pageId).set({
+        ...pageData,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'originalId': pageId,
+      });
+
+      // 3. 원본 페이지 삭제
+      await _firestore.collection('pages').doc(pageId).delete();
+
+      // 4. 블록도 함께 이동
+      final blocksSnapshot = await _firestore
+          .collection('pages')
+          .doc(pageId)
+          .collection('blocks')
+          .get();
+
+      final batch = _firestore.batch();
+      for (var blockDoc in blocksSnapshot.docs) {
+        // 휴지통에 블록 복사
+        final trashBlockRef = _firestore
+            .collection('trash')
+            .doc(pageId)
+            .collection('blocks')
+            .doc(blockDoc.id);
+        batch.set(trashBlockRef, blockDoc.data());
+        
+        // 원본 블록 삭제
+        batch.delete(blockDoc.reference);
+      }
+      await batch.commit();
+
+      debugPrint('[Firestore] 휴지통 이동 완료: $pageId');
+    } catch (e) {
+      debugPrint('[Firestore] moveToTrash 실패: $e');
+      rethrow;
+    }
+  }
+
+  /// 휴지통 목록 조회
+  Future<List<Map<String, dynamic>>> fetchTrash() async {
+    try {
+      final snapshot = await _firestore
+          .collection('trash')
+          .orderBy('deletedAt', descending: true)
+          .get();
+
+      debugPrint('📖 휴지통 조회: ${snapshot.docs.length}개');
+      
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'title': data['title'] ?? '제목 없음',
+          'deletedAt': (data['deletedAt'] as Timestamp).toDate().toIso8601String(),
+          'lastEdited': (data['lastEdited'] as Timestamp).toDate().toIso8601String(),
+          'isFavorite': data['isFavorite'] ?? false,
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('[Firestore] fetchTrash 실패: $e');
+      return [];
+    }
+  }
+
+  /// 휴지통에서 복원
+  Future<void> restoreFromTrash(String pageId) async {
+    try {
+      // 1. 휴지통에서 데이터 가져오기
+      final trashDoc = await _firestore.collection('trash').doc(pageId).get();
+      
+      if (!trashDoc.exists) {
+        throw Exception('휴지통에서 페이지를 찾을 수 없습니다: $pageId');
+      }
+
+      final pageData = trashDoc.data()!;
+      pageData.remove('deletedAt');
+      pageData.remove('originalId');
+
+      // 2. pages 컬렉션에 복원
+      await _firestore.collection('pages').doc(pageId).set({
+        ...pageData,
+        'lastEdited': FieldValue.serverTimestamp(),
+      });
+
+      // 3. 블록도 복원
+      final trashBlocksSnapshot = await _firestore
+          .collection('trash')
+          .doc(pageId)
+          .collection('blocks')
+          .get();
+
+      final batch = _firestore.batch();
+      for (var blockDoc in trashBlocksSnapshot.docs) {
+        final pageBlockRef = _firestore
+            .collection('pages')
+            .doc(pageId)
+            .collection('blocks')
+            .doc(blockDoc.id);
+        batch.set(pageBlockRef, blockDoc.data());
+        
+        // 휴지통 블록 삭제
+        batch.delete(blockDoc.reference);
+      }
+
+      // 4. 휴지통에서 삭제
+      batch.delete(_firestore.collection('trash').doc(pageId));
+      
+      await batch.commit();
+
+      debugPrint('[Firestore] 복원 완료: $pageId');
+    } catch (e) {
+      debugPrint('[Firestore] restoreFromTrash 실패: $e');
+      rethrow;
+    }
+  }
+
+  /// 휴지통에서 영구 삭제
+  Future<void> permanentlyDelete(String pageId) async {
+    try {
+      // 블록 삭제
+      final blocksSnapshot = await _firestore
+          .collection('trash')
+          .doc(pageId)
+          .collection('blocks')
+          .get();
+
+      final batch = _firestore.batch();
+      for (var doc in blocksSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // 페이지 삭제
+      batch.delete(_firestore.collection('trash').doc(pageId));
+      
+      await batch.commit();
+
+      debugPrint('[Firestore] 영구 삭제 완료: $pageId');
+    } catch (e) {
+      debugPrint('[Firestore] permanentlyDelete 실패: $e');
+      rethrow;
+    }
+  }
+
+  /// 휴지통 전체 비우기
+  Future<void> emptyTrash() async {
+    try {
+      final snapshot = await _firestore.collection('trash').get();
+      
+      final batch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        // 각 페이지의 블록도 삭제
+        final blocksSnapshot = await _firestore
+            .collection('trash')
+            .doc(doc.id)
+            .collection('blocks')
+            .get();
+        
+        for (var blockDoc in blocksSnapshot.docs) {
+          batch.delete(blockDoc.reference);
+        }
+        
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+
+      debugPrint('[Firestore] 휴지통 비우기 완료: ${snapshot.docs.length}개 삭제');
+    } catch (e) {
+      debugPrint('[Firestore] emptyTrash 실패: $e');
+      rethrow;
+    }
+  }
 }
