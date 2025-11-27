@@ -72,42 +72,51 @@ class _TrashScreenState extends State<TrashScreen> {
   void _showRestoreDialog(PageData page) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('페이지 복원'),
           content: Text('"${page.title}" 페이지를 복원하시겠습니까?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('취소'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);  //다이얼로그 먼저 닫기
 
                 try {
                   final repository = Provider.of<PageRepository>(context, listen: false);
+                  
+                  //복원 작업
                   await repository.restoreFromTrash(page.id);
+                  
+                  // 휴지통 다시 로드
+                  await _loadTrash();
 
-                  setState(() {
-                    _deletedPages.remove(page);
-                  });
-
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('"${page.title}" 페이지가 복원되었습니다.')),
-                    );
+                  //CRUCIAL: mounted 체크 후에만 UI 업데이트
+                  if (!mounted) {
+                    debugPrint('⚠️ 위젯이 dispose됨. UI 업데이트 스킵');
+                    return;
                   }
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('"${page.title}" 페이지가 복원되었습니다.')),
+                  );
 
-                  debugPrint('✅ 페이지 복원 완료: ${page.id}');
+                  debugPrint('[Firestore] 복원 완료: ${page.id}');
                 } catch (e) {
                   debugPrint('❌ 페이지 복원 실패: $e');
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('복원 실패: $e')),
-                    );
+                  //오류 시에도 mounted 체크
+                  if (!mounted) {
+                    debugPrint('⚠️ 위젯이 dispose됨. 오류 UI 업데이트 스킵');
+                    return;
                   }
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('복원 실패: $e')),
+                  );
                 }
               },
               child: const Text('복원'),
@@ -118,46 +127,50 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
+
   /// 영구 삭제
   void _showPermanentDeleteDialog(PageData page) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('영구 삭제'),
           content: Text('"${page.title}" 페이지를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('취소'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);  // 다이얼로그 먼저 닫기
 
                 try {
                   final repository = Provider.of<PageRepository>(context, listen: false);
                   await repository.permanentlyDelete(page.id);
 
+                  // setState는 안전하게 실행
                   setState(() {
                     _deletedPages.remove(page);
                   });
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('"${page.title}" 페이지가 영구 삭제되었습니다.')),
-                    );
-                  }
+                  // mounted 체크 후 성공 메시지
+                  if (!mounted) return;
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('"${page.title}" 페이지가 영구 삭제되었습니다.')),
+                  );
 
                   debugPrint('✅ 페이지 영구 삭제 완료: ${page.id}');
                 } catch (e) {
                   debugPrint('❌ 페이지 영구 삭제 실패: $e');
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('영구 삭제 실패: $e')),
-                    );
-                  }
+                  // 오류 시에도 mounted 체크
+                  if (!mounted) return;
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('영구 삭제 실패: $e')),
+                  );
                 }
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -169,53 +182,55 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
+
+
   /// 휴지통 전체 비우기
   void _showEmptyTrashDialog() {
-    if (_deletedPages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('휴지통이 이미 비어있습니다.')),
-      );
-      return;
-    }
+  if (_deletedPages.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('휴지통이 이미 비어있습니다.')),
+    );
+    return;
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('휴지통 비우기'),
-          content: Text('${_deletedPages.length}개의 페이지를 모두 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
+  showDialog(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('휴지통 비우기'),
+        content: Text('${_deletedPages.length}개의 페이지를 모두 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
 
-                try {
-                  final repository = Provider.of<PageRepository>(context, listen: false);
-                  await repository.emptyTrash();
+              try {
+                final repository = Provider.of<PageRepository>(context, listen: false);
+                await repository.emptyTrash();
 
-                  setState(() {
-                    _deletedPages.clear();
-                  });
+                setState(() {
+                  _deletedPages.clear();
+                });
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('휴지통이 비워졌습니다.')),
-                    );
-                  }
+                if (!mounted) return;
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('휴지통이 비워졌습니다.')),
+                );
 
-                  debugPrint('✅ 휴지통 비우기 완료');
+                debugPrint('✅ 휴지통 비우기 완료');
                 } catch (e) {
                   debugPrint('❌ 휴지통 비우기 실패: $e');
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('휴지통 비우기 실패: $e')),
-                    );
-                  }
+                  if (!mounted) return; 
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('휴지통 비우기 실패: $e')),
+                  );
                 }
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -226,6 +241,7 @@ class _TrashScreenState extends State<TrashScreen> {
       },
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

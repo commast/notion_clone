@@ -2,6 +2,7 @@
 import '../data/page_data.dart';
 import '../services/api_service.dart';
 import 'package:flutter/material.dart';
+import '../services/firestore_api_service.dart';
 
 class PageRepository {
   final ApiService _apiService;
@@ -19,6 +20,8 @@ class PageRepository {
           title: json['title'] as String,
           lastEdited: DateTime.parse(json['lastEdited'] as String),
           isFavorite: json['isFavorite'] as bool? ?? false,
+          parentId: json['parentId'] as String?,
+          
         );
       }).toList();
     } catch (e) {
@@ -91,16 +94,31 @@ class PageRepository {
       final blocksJson = await _apiService.fetchBlocks(pageId);
       
       return blocksJson.map((json) {
+        //Color 변환 추가
+        Color? textColor;
+        Color? backgroundColor;
+        
+        if (json['textColor'] != null) {
+          textColor = Color(json['textColor'] as int);
+        }
+        
+        if (json['backgroundColor'] != null) {
+          backgroundColor = Color(json['backgroundColor'] as int);
+        }
+        
         return BlockData(
           type: json['type'] as String,
           content: json['content'],
+          textColor: textColor,
+          backgroundColor: backgroundColor,
         );
       }).toList();
     } catch (e) {
-      debugPrint('❌ [Repository] getBlocks 실패: $e');
+      debugPrint('[Repository] getBlocks 실패: $e');
       rethrow;
     }
   }
+
   
   /// 블록들 저장
   Future<void> saveBlocks(String pageId, List<BlockData> blocks) async {
@@ -109,6 +127,8 @@ class PageRepository {
         return {
           'type': block.type,
           'content': block.content,
+          'textColor': block.textColor?.value, 
+          'backgroundColor': block.backgroundColor?.value,
         };
       }).toList();
       
@@ -118,7 +138,7 @@ class PageRepository {
       rethrow;
     }
   }
-  
+
   /// 즐겨찾기 토글
   Future<void> toggleFavorite(String pageId, bool isFavorite) async {
     try {
@@ -160,9 +180,9 @@ class PageRepository {
   /// 휴지통에서 복원
   Future<void> restoreFromTrash(String pageId) async {
     try {
-      await _apiService.restoreFromTrash(pageId);
+      await (_apiService as FirestoreApiService).restoreFromTrash(pageId); 
     } catch (e) {
-      debugPrint('❌ [Repository] restoreFromTrash 실패: $e');
+      debugPrint('[Repository] restoreFromTrash 실패: $e');
       rethrow;
     }
   }

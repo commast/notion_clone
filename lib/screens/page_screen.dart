@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import '../repositories/page_repository.dart';
 
 import '../data/page_data.dart';
 import '../utils/font_provider.dart';
@@ -66,19 +67,90 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   final List<List<BlockData>> _undoStack = [];
   int _currentFocusedBlockIndex = -1;
 
+   bool _isLoading = true; 
+
+   PageRepository? _repository;
+
   bool get canUndo => _undoStack.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
-    _currentBlocks = getPageBlocks(widget.page.id);
+    _loadPageData();
+  }
+
+   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    //repository를 미리 저장
+    _repository = Provider.of<PageRepository>(context, listen: false);
   }
 
   @override
   void dispose() {
+    _savePageData();
     _focusNode.dispose();
     super.dispose();
   }
+
+  Future<void> _loadPageData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // _repository 사용
+      final repository = _repository ?? Provider.of<PageRepository>(context, listen: false);
+      final blocks = await repository.getBlocks(widget.page.id);
+      
+      if (blocks.isNotEmpty) {
+        setState(() {
+          _currentBlocks = blocks;
+          _isLoading = false;
+        });
+        debugPrint('Firebase에서 블록 로드: ${blocks.length}개');
+      } else {
+        setState(() {
+          _currentBlocks = getPageBlocks(widget.page.id);
+          _isLoading = false;
+        });
+        debugPrint('로컬 메모리에서 블록 로드');
+      }
+    } catch (e) {
+      debugPrint('블록 로드 실패: $e');
+      setState(() {
+        _currentBlocks = getPageBlocks(widget.page.id);
+        _isLoading = false;
+      });
+    }
+  }
+
+
+  Future<void> _savePageData() async {
+    // _repository가 없으면 저장 안 함
+    if (_repository == null) {
+      debugPrint('⚠️ Repository가 없어 저장 건너뜀');
+      return;
+    }
+    
+    try {
+      // 페이지 제목 저장
+      await _repository!.updatePage(widget.page);
+      
+      // 블록 내용 저장
+      await _repository!.saveBlocks(widget.page.id, _currentBlocks);
+      
+      // 로컬 메모리에도 저장
+      savePageBlocks(widget.page.id, _currentBlocks);
+      
+      debugPrint('페이지 데이터 저장 완료: ${widget.page.title}');
+    } catch (e) {
+      debugPrint('페이지 데이터 저장 실패: $e');
+    }
+  }
+
+
+
 
   // 같은 부모를 가진 형제 페이지들 가져오기
   List<PageData> get _siblingPages {
@@ -321,112 +393,183 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 }
 
 
-  void _addBlock(String blockType) {
-    _saveState();
-    setState(() {
-      switch (blockType) {
-        case 'text':
-          _currentBlocks.add(BlockData(type: 'text', content: ''));
-          break;
-        case 'heading1':
-          _currentBlocks.add(BlockData(type: 'heading1', content: ''));
-          break;
-        case 'heading2':
-          _currentBlocks.add(BlockData(type: 'heading2', content: ''));
-          break;
-        case 'heading3':
-          _currentBlocks.add(BlockData(type: 'heading3', content: ''));
-          break;
-        case 'bulleted_list':
-          _currentBlocks.add(BlockData(type: 'bulleted_list', content: ''));
-          break;
-        case 'numbered_list':
-          int nextNumber = 1;
-          for (var block in _currentBlocks) {
-            if (block.type == 'numbered_list') {
-              final data = block.content as Map<String, dynamic>;
-              int num = data['number'] ?? 1;
-              if (num >= nextNumber) {
-                nextNumber = num + 1;
-              }
-            }
+  void _addBlock(String blockType) async {  // ✅ async 추가
+  _saveState();
+  
+  switch (blockType) {
+    case 'text':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'text', content: ''));
+      });
+      break;
+      
+    case 'heading1':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'heading1', content: ''));
+      });
+      break;
+      
+    case 'heading2':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'heading2', content: ''));
+      });
+      break;
+      
+    case 'heading3':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'heading3', content: ''));
+      });
+      break;
+      
+    case 'bulleted_list':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'bulleted_list', content: ''));
+      });
+      break;
+      
+    case 'numbered_list':
+      int nextNumber = 1;
+      for (var block in _currentBlocks) {
+        if (block.type == 'numbered_list') {
+          final data = block.content as Map<String, dynamic>;
+          int num = data['number'] ?? 1;
+          if (num >= nextNumber) {
+            nextNumber = num + 1;
           }
-          _currentBlocks.add(BlockData(
-            type: 'numbered_list',
-            content: {'number': nextNumber, 'text': ''},
-          ));
-          break;
-        case 'todo_list':
-          _currentBlocks.add(BlockData(
-            type: 'todo_list',
-            content: {'checked': false, 'text': ''},
-          ));
-          break;
-        case 'toggle_list':
-          _currentBlocks.add(BlockData(
-            type: 'toggle_list',
-            content: {'title': '', 'content': ''},
-          ));
-          break;
-        case 'page':
-          final newPageId = DateTime.now().millisecondsSinceEpoch.toString();
-          final newPageTitle = '제목 없음';
-          
-          final newPage = PageData(
-            id: newPageId,
-            title: newPageTitle,
-            lastEdited: DateTime.now(),
-          );
-          
-          if (widget.onPageCreated != null) {
-            widget.onPageCreated!(newPage);
-          }
-          
+        }
+      }
+      setState(() {
+        _currentBlocks.add(BlockData(
+          type: 'numbered_list',
+          content: {'number': nextNumber, 'text': ''},
+        ));
+      });
+      break;
+      
+    case 'todo_list':
+      setState(() {
+        _currentBlocks.add(BlockData(
+          type: 'todo_list',
+          content: {'checked': false, 'text': ''},
+        ));
+      });
+      break;
+      
+    case 'toggle_list':
+      setState(() {
+        _currentBlocks.add(BlockData(
+          type: 'toggle_list',
+          content: {'title': '', 'content': ''},
+        ));
+      });
+      break;
+      
+    case 'page':
+      final newPageId = DateTime.now().millisecondsSinceEpoch.toString();
+      final newPageTitle = '제목 없음';
+      
+      final newPage = PageData(
+        id: newPageId,
+        title: newPageTitle,
+        lastEdited: DateTime.now(),
+      );
+      
+      // ✅ async 작업
+      final repository = Provider.of<PageRepository>(context, listen: false);
+      
+      try {
+        await repository.createPage(newPage);
+        
+        final defaultBlocks = [
+          BlockData(type: 'title', content: newPageTitle),
+          BlockData(type: 'text', content: ''),
+        ];
+        
+        await repository.saveBlocks(newPageId, defaultBlocks);
+        savePageBlocks(newPageId, defaultBlocks);
+        
+        debugPrint('✅ 하위 페이지 생성 완료: $newPageId');
+        
+        if (widget.onPageCreated != null) {
+          widget.onPageCreated!(newPage);
+        }
+        
+        setState(() {
           _currentBlocks.add(BlockData(
             type: 'page',
             content: '$newPageId|$newPageTitle',
           ));
-          break;
-        case 'callout':
-          _currentBlocks.add(BlockData(type: 'callout', content: ''));
-          break;
-        case 'quote':
-          _currentBlocks.add(BlockData(type: 'quote', content: ''));
-          break;
-        case 'divider':
-          _currentBlocks.add(BlockData(type: 'divider', content: null));
-          break;
-        case '표':
-          Navigator.pop(context);
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (BuildContext context) {
-              return TableSizeSelectorModal(
-                onTableCreated: (rows, cols) {
-                  _saveState();
-                  setState(() {
-                    _currentBlocks.add(BlockData(type: 'table', content: {'rows': rows, 'cols': cols}));
-                  });
-                  Navigator.pop(context);
-                },
-              );
+        });
+      } catch (e) {
+        debugPrint('❌ 하위 페이지 생성 실패: $e');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('페이지 생성 실패: $e')),
+          );
+        }
+      }
+      break;
+      
+    case 'callout':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'callout', content: ''));
+      });
+      break;
+      
+    case 'quote':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'quote', content: ''));
+      });
+      break;
+      
+    case 'divider':
+      setState(() {
+        _currentBlocks.add(BlockData(type: 'divider', content: null));
+      });
+      break;
+      
+    case '표':
+      Navigator.pop(context);
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (BuildContext context) {
+          return TableSizeSelectorModal(
+            onTableCreated: (rows, cols) {
+              _saveState();
+              setState(() {
+                _currentBlocks.add(BlockData(type: 'table', content: {'rows': rows, 'cols': cols}));
+              });
+              Navigator.pop(context);
             },
           );
-          return;
-        case '코드':
+        },
+      );
+      return;
+      
+      case '코드':
+        setState(() {
           _currentBlocks.add(BlockData(type: 'code', content: ''));
-          break;
-        case '막대 차트':
+        });
+        break;
+        
+      case '막대 차트':
+        setState(() {
           _currentBlocks.add(BlockData(type: 'chart', content: null));
-          break;
-        default:
+        });
+        break;
+        
+      default:
+        setState(() {
           _currentBlocks.add(BlockData(type: 'text', content: ''));
-      }
-    });
+        });
+    }
+    
     Navigator.pop(context);
   }
+
 
   void _showBlockSelector() {
     showModalBottomSheet(
@@ -537,6 +680,22 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final nextPage = _nextPage;
     final hasNavigation = previousPage != null || nextPage != null;
 
+      // 로딩 중일 때 로딩 화면 표시
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('로딩 중...'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
@@ -597,13 +756,23 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     focusNode: _focusNode,
                     pageId: widget.page.id,
                     textColor: block.textColor,
-                    onChanged: (val) {
+                    onChanged: (val) async {  // async 추가
                       block.content = val;
                       widget.page.title = val;
                       widget.page.lastEdited = DateTime.now();
                       widget.onPageChanged?.call();
                       setState(() {});
+                      
+                      if (_repository != null) {
+                        try {
+                          await _repository!.updatePage(widget.page);
+                          debugPrint('제목 저장: $val');
+                        } catch (e) {
+                          debugPrint('제목 저장 실패: $e');
+                        }
+                      }
                     },
+
                     onTap: () {
                       setState(() {
                         _currentFocusedBlockIndex = index;

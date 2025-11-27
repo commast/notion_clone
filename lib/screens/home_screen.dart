@@ -58,35 +58,61 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
 
 
   Future<void> _loadPages() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+  
+  try {
+    final repository = Provider.of<PageRepository>(context, listen: false);
+    final pages = await repository.getAllPages();
     
-    try {
-      final repository = Provider.of<PageRepository>(context, listen: false);
-      final pages = await repository.getAllPages();
-      
-      setState(() {
-        _personalPages.clear();
-        _personalPages.addAll(pages);
-        
-        // 즐겨찾기 페이지 필터링
-        _favoritePages.clear();
-        _favoritePages.addAll(pages.where((p) => p.isFavorite));
-        
-        _isLoading = false;
+    // 1) id → PageData 매핑
+    final Map<String, PageData> pageMap = {
+      for (final p in pages) p.id: p,
+    };
+
+    // 2) 트리 구조 재구성
+    final List<PageData> roots = [];
+    
+    for (final page in pages) {
+      if (page.parentId == null || page.parentId!.isEmpty) {
+        // 상위 페이지
+        page.parentPage = null;
+        page.subPages.clear();
+        roots.add(page);
+      } else {
+        final parent = pageMap[page.parentId!];
+        if (parent != null) {
+          page.parentPage = parent;
+          parent.subPages.add(page);
+        } else {
+          // 부모 없으면 루트로
+          page.parentPage = null;
+          roots.add(page);
+        }
+      }
+    }
+
+    setState(() {
+      _personalPages
+        ..clear()
+        ..addAll(roots);
+
+      _favoritePages
+        ..clear()
+        ..addAll(pages.where((p) => p.isFavorite));
+
+      _isLoading = false;
       });
       
-      debugPrint('✅ ${pages.length}개 페이지 로드 완료');
+      debugPrint('${pages.length}개 페이지 로드 + 트리 구성 완료');
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = '페이지를 불러오는데 실패했습니다: $e';
       });
-      
-      debugPrint('❌ 페이지 로드 실패: $e');
-      
+      debugPrint('페이지 로드 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_errorMessage!)),
@@ -94,6 +120,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       }
     }
   }
+
 
 
   // 딥링크 확인 및 페이지 열기
@@ -288,22 +315,38 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     );
   }
 
-
   // 새 페이지 추가
   void _addNewPage() async {
     final newPage = PageData(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: '제목 없음',
       lastEdited: DateTime.now(),
+      parentId: null,
     );
     
     try {
       final repository = Provider.of<PageRepository>(context, listen: false);
+      
+      // 1. Firebase에 페이지 생성 (먼저!)
       await repository.createPage(newPage);
       
-      setState(() {
-        _personalPages.insert(0, newPage);
-      });
+      // 2. 기본 블록도 생성
+      final defaultBlocks = [
+        BlockData(type: 'title', content: '제목 없음'),
+        BlockData(type: 'text', content: ''),
+      ];
+      
+      await repository.saveBlocks(newPage.id, defaultBlocks);
+      
+      // 3. 로컬 메모리에도 저장
+      savePageBlocks(newPage.id, defaultBlocks);
+      
+      // 4. 마지막에 로컬 UI 업데이트
+      if (mounted) {
+        setState(() {
+          _personalPages.insert(0, newPage);
+        });
+      }
       
       debugPrint('✅ 새 페이지 생성 완료: ${newPage.id}');
     } catch (e) {
@@ -314,9 +357,9 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
           SnackBar(content: Text('페이지 생성 실패: $e')),
         );
       }
+      // 실패 시 로컬 UI 업데이트 안 함 (처음부터 안 넣었으므로)
     }
   }
-
 
   // 새 페이지를 만들고 해당 페이지 화면으로 이동
   void _createNewPageAndOpen(BuildContext ctx) async {
@@ -324,18 +367,34 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: '제목 없음',
       lastEdited: DateTime.now(),
+      parentId: null,
     );
     
     try {
       final repository = Provider.of<PageRepository>(context, listen: false);
+      
+      // 1. Firebase 저장 먼저!
       await repository.createPage(newPage);
       
-      setState(() {
-        _personalPages.insert(0, newPage);
-      });
+      // 2. 기본 블록 생성
+      final defaultBlocks = [
+        BlockData(type: 'title', content: '제목 없음'),
+        BlockData(type: 'text', content: ''),
+      ];
+      
+      await repository.saveBlocks(newPage.id, defaultBlocks);
+      savePageBlocks(newPage.id, defaultBlocks);
+      
+      // 3. 마지막에 로컬 UI 업데이트
+      if (mounted) {
+        setState(() {
+          _personalPages.insert(0, newPage);
+        });
+      }
       
       _updateRecentPages(newPage);
       
+      // 4. 페이지 화면으로 이동
       Navigator.push(
         ctx,
         MaterialPageRoute(
@@ -363,17 +422,20 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         ),
       );
       
-      debugPrint('✅ 새 페이지 생성 및 열기 완료');
+      debugPrint('새 페이지 생성 및 열기 완료');
     } catch (e) {
-      debugPrint('❌ 페이지 생성 실패: $e');
+      debugPrint('페이지 생성 실패: $e');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('페이지 생성 실패: $e')),
         );
       }
+      // 실패 시 로컬 UI 업데이트 안 함
     }
   }
+
+
 
 
   // 하위 페이지 추가
@@ -384,6 +446,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         title: '제목 없음',
         lastEdited: DateTime.now(),
         parentPage: parentPage,
+        parentId: parentPage.id,
       );
       
       parentPage.subPages.add(subPage);
@@ -462,7 +525,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
 
 
   // 페이지 복제
-  void _duplicatePage(PageData page) {
+  void _duplicatePage(PageData page) async {
     setState(() {
       // 1. 중복된 이름 확인 및 번호 생성
       String newTitle = _generateDuplicateTitle(page);
@@ -476,6 +539,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         title: newTitle,
         lastEdited: DateTime.now(),
         isFavorite: false,
+        parentId: page.parentId,
         parentPage: page.parentPage,
       );
       
@@ -753,7 +817,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     );
   }
 
-
   // 휴지통 화면 열기
   void _openTrash() {
     Navigator.push(
@@ -761,9 +824,11 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       MaterialPageRoute(
         builder: (_) => const TrashScreen(),
       ),
-    ).then((_) => setState(() {}));
+    ).then((_) {
+      // 휴지통에서 돌아오면 페이지 다시 로드
+      _loadPages();
+    });
   }
-
 
   @override
   Widget build(BuildContext context) {
