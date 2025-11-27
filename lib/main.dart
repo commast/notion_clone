@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_links/app_links.dart';
-import 'package:firebase_core/firebase_core.dart';  // 추가
-import 'firebase_options.dart';  // 추가
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
 import 'dart:async';
 
-// 기존 import
 import 'screens/home_screen.dart';
+import 'screens/email_verification_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/font_provider.dart';
 import 'utils/app_theme.dart';
-// 수정: FirestoreApiService로 변경
 import 'repositories/page_repository.dart';
-import 'services/firestore_api_service.dart';  // 변경
+import 'services/firestore_api_service.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // FirestoreApiService로 변경
   final apiService = FirestoreApiService();
   final pageRepository = PageRepository(apiService);
 
@@ -30,6 +29,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<PageRepository>.value(value: pageRepository),
+        Provider<AuthService>(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => FontProvider()),
         ChangeNotifierProvider(create: (_) => DeepLinkProvider()),
@@ -107,12 +107,36 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: const NotionHomeScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          if (snapshot.hasData) {
+            final user = snapshot.data!;
+            
+            if (!user.emailVerified) {
+              return EmailVerificationScreen(
+                email: user.email ?? '',
+              );
+            }
+            
+            return const NotionHomeScreen();
+          }
+
+          return const NotionHomeScreen();
+        },
+      ),
     );
   }
 }
 
-// 딥링크 상태 관리를 위한 Provider
 class DeepLinkProvider with ChangeNotifier {
   String? _pageIdToOpen;
 

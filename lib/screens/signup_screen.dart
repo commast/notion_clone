@@ -1,33 +1,35 @@
-// lib/screens/login_screen.dart
+// lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'signup_screen.dart';
 import 'email_verification_screen.dart';
-import 'home_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _signIn() async {
+  Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -37,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final authService = AuthService();
-    final result = await authService.signInWithEmail(
+    final result = await authService.signUpWithEmail(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
@@ -49,14 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result['success']) {
-      // 로그인 성공 - 이메일 앞부분을 이름으로 사용
-      final email = _emailController.text.trim();
-      final name = email.split('@').first;
-      
-      Navigator.pop(context, name);
-    } else if (result['needVerification'] == true) {
-      // 이메일 인증 필요
-      Navigator.push(
+      // 회원가입 성공 - 이메일 인증 화면으로 이동
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => EmailVerificationScreen(
@@ -65,45 +61,10 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
-      // 로그인 실패
+      // 실패 메시지 표시
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _resetPassword() async {
-    if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('이메일을 입력해주세요'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final authService = AuthService();
-    final success = await authService.sendPasswordResetEmail(
-      _emailController.text.trim(),
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('비밀번호 재설정 이메일을 전송했습니다.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('이메일 전송에 실패했습니다.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -118,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
         title: const Text(
-          '로그인',
+          '회원가입',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -135,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 
                 // 타이틀
                 const Text(
-                  '다시 오신 것을\n환영합니다',
+                  'Notion에 오신 것을\n환영합니다',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -147,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 12),
                 
                 const Text(
-                  '이메일과 비밀번호로 로그인하세요.',
+                  '이메일과 비밀번호를 입력하여 계정을 생성하세요.',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
@@ -190,6 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return '이메일을 입력해주세요';
                     }
+                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return '올바른 이메일 형식이 아닙니다';
+                    }
                     return null;
                   },
                 ),
@@ -204,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: '비밀번호',
                     labelStyle: const TextStyle(color: Colors.white70),
-                    hintText: '비밀번호를 입력하세요',
+                    hintText: '6자 이상 입력',
                     hintStyle: const TextStyle(color: Colors.white38),
                     prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
                     suffixIcon: IconButton(
@@ -241,34 +206,74 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (value == null || value.isEmpty) {
                       return '비밀번호를 입력해주세요';
                     }
+                    if (value.length < 6) {
+                      return '비밀번호는 최소 6자 이상이어야 합니다';
+                    }
                     return null;
                   },
                 ),
                 
-                const SizedBox(height: 12),
-                
-                // 비밀번호 찾기
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _resetPassword,
-                    child: const Text(
-                      '비밀번호를 잊으셨나요?',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-                
                 const SizedBox(height: 20),
                 
-                // 로그인 버튼
+                // 비밀번호 확인
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  style: const TextStyle(color: Colors.white),
+                  obscureText: _obscureConfirmPassword,
+                  decoration: InputDecoration(
+                    labelText: '비밀번호 확인',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    hintText: '비밀번호 재입력',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white24),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.red, width: 2),
+                    ),
+                    fillColor: Colors.black54,
+                    filled: true,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '비밀번호 확인을 입력해주세요';
+                    }
+                    if (value != _passwordController.text) {
+                      return '비밀번호가 일치하지 않습니다';
+                    }
+                    return null;
+                  },
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // 회원가입 버튼
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _signIn,
+                    onPressed: _isLoading ? null : _signUp,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -287,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : const Text(
-                            '로그인',
+                            '회원가입',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -298,25 +303,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // 회원가입 화면으로 이동
+                // 로그인 화면으로 이동
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      '계정이 없으신가요?',
+                      '이미 계정이 있으신가요?',
                       style: TextStyle(color: Colors.white70),
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SignUpScreen(),
-                          ),
-                        );
+                        Navigator.pop(context);
                       },
                       child: const Text(
-                        '회원가입',
+                        '로그인',
                         style: TextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,
