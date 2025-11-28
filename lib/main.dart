@@ -18,9 +18,7 @@ import 'services/auth_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final apiService = FirestoreApiService();
   final pageRepository = PageRepository(apiService);
@@ -58,7 +56,10 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
 
   Future<void> _initDeepLinks() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final deepLinkProvider = Provider.of<DeepLinkProvider>(context, listen: false);
+      final deepLinkProvider = Provider.of<DeepLinkProvider>(
+        context,
+        listen: false,
+      );
 
       try {
         final initialUri = await _appLinks.getInitialLink();
@@ -70,14 +71,17 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
         debugPrint('초기 딥링크 처리 실패: $e');
       }
 
-      _linkSubscription = _appLinks.uriLinkStream.listen((Uri? uri) {
-        if (uri != null) {
-          debugPrint('딥링크 수신 (실행 중/백그라운드): $uri');
-          _handleDeepLink(uri, deepLinkProvider);
-        }
-      }, onError: (err) {
-        debugPrint('딥링크 에러: $err');
-      });
+      _linkSubscription = _appLinks.uriLinkStream.listen(
+        (Uri? uri) {
+          if (uri != null) {
+            debugPrint('딥링크 수신 (실행 중/백그라운드): $uri');
+            _handleDeepLink(uri, deepLinkProvider);
+          }
+        },
+        onError: (err) {
+          debugPrint('딥링크 에러: $err');
+        },
+      );
     });
   }
 
@@ -112,21 +116,17 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: CircularProgressIndicator()),
             );
           }
 
           if (snapshot.hasData) {
             final user = snapshot.data!;
-            
+
             if (!user.emailVerified) {
-              return EmailVerificationScreen(
-                email: user.email ?? '',
-              );
+              return EmailVerificationScreen(email: user.email ?? '');
             }
-            
+
             return const NotionHomeScreen();
           }
 
