@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
-
+import '../services/auth_service.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -154,6 +154,9 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  
+  // ✅ 로딩 상태 추가
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -163,15 +166,46 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
     super.dispose();
   }
 
-  void _changePassword() {
+  // ✅ 비밀번호 변경 로직 수정
+  Future<void> _changePassword() async {
     if (_formKey.currentState!.validate()) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('비밀번호가 성공적으로 변경되었습니다.'),
-          duration: Duration(seconds: 2),
-        ),
+      setState(() {
+        _isLoading = true; // 로딩 시작
+      });
+
+      // AuthService 호출
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      final success = await authService.changePassword(
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
       );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false; // 로딩 종료
+      });
+
+      if (success) {
+        Navigator.pop(context); // 다이얼로그 닫기
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ 비밀번호가 성공적으로 변경되었습니다.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // 실패 시 (주로 현재 비밀번호가 틀렸을 때)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ 비밀번호 변경 실패. 현재 비밀번호를 확인해주세요.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -185,6 +219,8 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // ... (TextFormField 들은 기존 코드 그대로 유지) ...
+              
               // 현재 비밀번호
               TextFormField(
                 controller: _currentPasswordController,
@@ -193,22 +229,11 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
                   labelText: '현재 비밀번호',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureCurrentPassword ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureCurrentPassword = !_obscureCurrentPassword;
-                      });
-                    },
+                    icon: Icon(_obscureCurrentPassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureCurrentPassword = !_obscureCurrentPassword),
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '현재 비밀번호를 입력하세요';
-                  }
-                  return null;
-                },
+                validator: (value) => (value == null || value.isEmpty) ? '현재 비밀번호를 입력하세요' : null,
               ),
               const SizedBox(height: 16),
               
@@ -220,23 +245,13 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
                   labelText: '새 비밀번호',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureNewPassword ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureNewPassword = !_obscureNewPassword;
-                      });
-                    },
+                    icon: Icon(_obscureNewPassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '새 비밀번호를 입력하세요';
-                  }
-                  if (value.length < 6) {
-                    return '비밀번호는 최소 6자 이상이어야 합니다';
-                  }
+                  if (value == null || value.isEmpty) return '새 비밀번호를 입력하세요';
+                  if (value.length < 6) return '비밀번호는 최소 6자 이상이어야 합니다';
                   return null;
                 },
               ),
@@ -250,23 +265,13 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
                   labelText: '새 비밀번호 확인',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
+                    icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '새 비밀번호를 다시 입력하세요';
-                  }
-                  if (value != _newPasswordController.text) {
-                    return '비밀번호가 일치하지 않습니다';
-                  }
+                  if (value == null || value.isEmpty) return '새 비밀번호를 다시 입력하세요';
+                  if (value != _newPasswordController.text) return '비밀번호가 일치하지 않습니다';
                   return null;
                 },
               ),
@@ -276,12 +281,14 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isLoading ? null : () => Navigator.pop(context), // 로딩 중 닫기 방지
           child: const Text('취소'),
         ),
         ElevatedButton(
-          onPressed: _changePassword,
-          child: const Text('변경'),
+          onPressed: _isLoading ? null : _changePassword,
+          child: _isLoading 
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('변경'),
         ),
       ],
     );

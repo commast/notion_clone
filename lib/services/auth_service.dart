@@ -11,6 +11,14 @@ class AuthService {
   // 인증 상태 스트림
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  String getCurrentUserId() {
+    final user = _auth.currentUser;
+    if (user != null) {
+      return user.uid;
+    }
+    return ''; // 로그인 안 된 경우 빈 문자열 반환
+  }
+
   // 회원가입 (이메일 + 비밀번호)
   Future<Map<String, dynamic>> signUpWithEmail({
     required String email,
@@ -50,7 +58,36 @@ class AuthService {
       return {'success': false, 'message': '알 수 없는 오류가 발생했습니다: $e'};
     }
   }
+  Future<bool> changePassword({
+    required String currentPassword, 
+    required String newPassword
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('로그인된 사용자가 없습니다.');
 
+      // 1. 재인증 (Re-authenticate): 보안상 중요 작업 전에는 본인 확인이 필요합니다.
+      final email = user.email;
+      if (email == null) throw Exception('이메일 정보를 찾을 수 없습니다.');
+      
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: email, 
+        password: currentPassword
+      );
+      
+      await user.reauthenticateWithCredential(credential);
+
+      // 2. 비밀번호 변경
+      await user.updatePassword(newPassword);
+      
+      return true;
+    } catch (e) {
+      debugPrint('비밀번호 변경 실패: $e');
+      // 에러 메시지를 조금 더 구체적으로 처리하고 싶다면 여기서 throw e; 해도 됩니다.
+      return false;
+    }
+  }
+  
   // 로그인
   Future<Map<String, dynamic>> signInWithEmail({
     required String email,
