@@ -65,7 +65,27 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       _loadPages();
     }
   }
-  
+  List<PageData> _getAllPages() {
+    List<PageData> result = [];
+    // _personalPages는 최상위(루트) 페이지들만 담고 있음
+    for (var page in _personalPages) {
+      result.add(page);
+      // 하위 페이지들도 모두 수집
+      _collectAllSubPages(result, page.subPages);
+    }
+    return result;
+  }
+
+  // 2. 재귀적으로 모든 하위 페이지를 수집하는 헬퍼 함수
+  void _collectAllSubPages(List<PageData> result, List<PageData> subPages) {
+    for (var subPage in subPages) {
+      result.add(subPage);
+      if (subPage.subPages.isNotEmpty) {
+        // 하위의 하위 페이지도 계속 수집 (재귀 호출)
+        _collectAllSubPages(result, subPage.subPages);
+      }
+    }
+  }
   @override
   void initState() {
     super.initState();
@@ -386,6 +406,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     // 사용자 이름 표시
     final userEmail = _currentUser?.email;
     final userName = userEmail != null ? userEmail.split('@')[0] : '게스트';
+    
 
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -453,17 +474,29 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
           SliverToBoxAdapter(
             child: SizedBox(
               height: 180,
-              child: ListView.builder(
+              child:ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: _recentPages.length,
                 itemBuilder: (context, index) {
                   final recent = _recentPages[index];
+                  final pageId = recent['pageId'] as String;
+
+                  // 1. pageId로 실제 PageData 객체 찾기
+                  // (_getAllPages() 함수가 정의되어 있어야 합니다)
+                  final allPages = _getAllPages(); 
+                  final targetPage = allPages.firstWhereOrNull((p) => p.id == pageId);
+
+                  // 페이지가 삭제되었거나 없으면 빈 공간 표시
+                  if (targetPage == null) return const SizedBox.shrink();
+
                   return Container(
                      width: 150, margin: const EdgeInsets.only(left: 16), 
                      child: RecentPageCard(
                         title: recent['title'], 
                         icon: recent['icon'], 
                         color: recent['color'],
+                        // ★★★ [핵심 수정] 클릭 시 페이지 열기 연결 ★★★
+                        onTap: () => _openPage(targetPage),
                      ),
                   );
                 },

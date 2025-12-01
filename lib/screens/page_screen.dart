@@ -720,10 +720,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.upload_outlined),
-            onPressed: () {},
-          ),
-          IconButton(
             icon: const Icon(Icons.more_horiz),
             onPressed: () => _showPageActionsMenu(),
           ),

@@ -273,11 +273,17 @@ class FirestoreApiService implements ApiService {
       
       return snapshot.docs.map((doc) {
         final data = doc.data();
-        return {
+        String safeDate(dynamic value) {
+          if (value is Timestamp) return value.toDate().toIso8601String();
+          if (value is String) return value;
+          return DateTime.now().toIso8601String(); // 값이 없으면 현재 시간
+        }
+       return {
           'id': doc.id,
           'title': data['title'] ?? '제목 없음',
-          'deletedAt': (data['deletedAt'] as Timestamp).toDate().toIso8601String(),
-          'lastEdited': (data['lastEdited'] as Timestamp).toDate().toIso8601String(),
+          // 기존 코드가 여기서 에러가 났습니다. safeDate 함수로 감싸주세요.
+          'deletedAt': safeDate(data['deletedAt']), 
+          'lastEdited': safeDate(data['lastEdited']),
           'isFavorite': data['isFavorite'] ?? false,
           'parentId': data['parentId']?.toString() ?? '', 
         };
