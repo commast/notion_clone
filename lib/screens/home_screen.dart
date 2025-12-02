@@ -65,6 +65,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       _loadPages();
     }
   }
+
   List<PageData> _getAllPages() {
     List<PageData> result = [];
     // _personalPages는 최상위(루트) 페이지들만 담고 있음
@@ -86,6 +87,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       }
     }
   }
+
   @override
   void initState() {
     super.initState();
@@ -96,66 +98,118 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
 
   // 데이터 불러오기 및 트리 구조 구성
   Future<void> _loadPages() async {
+  if (!mounted) return;
+  
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+  
+  try {
+    final repository = Provider.of<PageRepository>(context, listen: false);
+    final pages = await repository.getAllPages();
+    
     if (!mounted) return;
-    
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _personalPages.clear();
-      _favoritePages.clear();
-    });
-    
-    try {
-      final repository = Provider.of<PageRepository>(context, listen: false);
-      final pages = await repository.getAllPages();
-      
-      if (!mounted) return;
 
-      // 1) id -> PageData 매핑 (빠른 검색용)
-      final Map<String, PageData> pageMap = { for (final p in pages) p.id: p };
+    debugPrint('📥 Firestore에서 로드된 페이지: ${pages.length}개');
+
+    // ✅ 1단계: 모든 페이지 맵 생성 (parentId 기반)
+    final Map<String, PageData> pageMap = {};
+    
+    for (var page in pages) {
+      // ✅ 완전히 새로운 PageData 객체 생성 (기존 참조 버림)
+      final newPage = PageData(
+        id: page.id,
+        title: page.title,
+        lastEdited: page.lastEdited,
+        isFavorite: page.isFavorite,
+        parentId: page.parentId,
+      );
+      pageMap[page.id] = newPage;
       
-      // 2) 트리 구조 재구성 (부모-자식 연결)
-      final List<PageData> roots = [];
+      debugPrint('  📄 ${page.title} (parentId: ${page.parentId})');
+    }
+    
+    // ✅ 2단계: 트리 구조 구성
+    final List<PageData> roots = [];
+    
+    for (var page in pageMap.values) {
+      final parentId = page.parentId;
       
-      for (final page in pages) {
-        // 초기화 (중복 추가 방지)
-        page.subPages.clear(); 
+      if (parentId == null || parentId.isEmpty) {
+        // 루트 페이지
+        roots.add(page);
+        debugPrint('  🌲 루트: ${page.title}');
+      } else {
+        // 하위 페이지
+        final parent = pageMap[parentId];
         
-        if (page.parentId == null || page.parentId!.isEmpty) {
-          page.parentPage = null;
-          roots.add(page);
+        if (parent != null) {
+          page.parentPage = parent;
+          parent.subPages.add(page);
+          debugPrint('  🔗 연결: ${page.title} -> ${parent.title}');
         } else {
-          final parent = pageMap[page.parentId!];
-          if (parent != null) {
-            page.parentPage = parent;
-            parent.subPages.add(page);
-          } else {
-            // 부모를 못 찾으면 루트로 취급 (예외 처리)
-            page.parentPage = null;
-            roots.add(page);
-          }
+          // 부모를 찾을 수 없으면 루트로 승격
+          debugPrint('  ⚠️ 부모 없음: ${page.title} (parentId: $parentId) -> 루트로 변경');
+          page.parentId = '';
+          roots.add(page);
         }
       }
+    }
 
-      setState(() {
-        _personalPages.addAll(roots);
-        _favoritePages.addAll(pages.where((p) => p.isFavorite));
-        _isLoading = false;
-      });
+    // ✅ 3단계: 상태 업데이트 (한 번에 모두 교체)
+    setState(() {
+      _personalPages.clear();
+      _personalPages.addAll(roots);
       
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '페이지를 불러오는데 실패했습니다: $e';
-      });
+      _favoritePages.clear();
+      _favoritePages.addAll(pageMap.values.where((p) => p.isFavorite));
+      
+      _isLoading = false;
+    });
+    
+    debugPrint('✅ 페이지 트리 구성 완료: 루트 ${roots.length}개, 전체 ${pageMap.length}개');
+    _printPageTree();
+    
+  } catch (e) {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _errorMessage = '페이지를 불러오는데 실패했습니다: $e';
+    });
+    debugPrint('❌ _loadPages 실패: $e');
+  }
+}
+
+
+  // ✅ 재귀적으로 모든 페이지 수집
+  void _collectPagesRecursively(PageData page, Map<String, PageData> map) {
+    map[page.id] = page;
+    for (var subPage in page.subPages) {
+      _collectPagesRecursively(subPage, map);
     }
   }
 
-  // 계층형 구조를 리스트뷰용 평탄화 리스트로 변환 (에러 해결된 부분)
+  // ✅ 디버깅용: 트리 구조 출력
+  void _printPageTree() {
+    debugPrint('🌳 페이지 트리 구조:');
+    for (var root in _personalPages) {
+      _printPageRecursively(root, 0);
+    }
+  }
+
+  void _printPageRecursively(PageData page, int level) {
+    final indent = '  ' * level;
+    debugPrint('$indent- ${page.title} (id: ${page.id}, parentId: ${page.parentId})');
+    for (var sub in page.subPages) {
+      _printPageRecursively(sub, level + 1);
+    }
+  }
+
+  // 계층형 구조를 리스트뷰용 평탄화 리스트로 변환
   List<PageData> _getFlattenedPages() {
     List<PageData> result = [];
-    for (var page in _personalPages) { // 이미 roots만 들어있음
+    for (var page in _personalPages) {
       result.add(page);
       if (page.isExpanded && page.subPages.isNotEmpty) {
         _addExpandedSubPages(result, page.subPages);
@@ -179,10 +233,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     final pageIdToOpen = deepLinkProvider.pageIdToOpen;
 
     if (pageIdToOpen != null) {
-      // 여기서는 전체 페이지 리스트에서 검색해야 함 (트리 구조 무시하고 검색 필요)
-      // 편의상 현재 로드된 페이지 내에서 검색한다고 가정
-      // 실제로는 repository.getPage(id)를 호출하는 것이 정확함
-      
       deepLinkProvider.clearPageIdToOpen();
     }
   }
@@ -203,7 +253,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
           onDelete: (p) => _confirmDeletePage(p).then((deleted) {
              if (deleted && mounted) Navigator.pop(context);
           }),
-          allPages: _personalPages, // 전체 리스트 전달 필요 (여기서는 roots만 전달됨, 개선 필요시 수정)
+          allPages: _personalPages,
           onPageCreated: (newPage) => setState(() => _personalPages.insert(0, newPage)),
         ),
       ),
@@ -250,7 +300,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     if (result == true) {
       final authService = Provider.of<AuthService>(context, listen: false);
       await authService.signOut();
-      // signOut -> didChangeDependencies 감지 -> _loadPages(Guest) 자동 실행
     }
   }
 
@@ -293,25 +342,25 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
   }
   
   void _addSubPage(PageData parentPage) async {
-      final newSubPage = PageData(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: '제목 없음',
-        lastEdited: DateTime.now(),
-        parentId: parentPage.id,
-        parentPage: parentPage,
-      );
+    final newSubPage = PageData(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: '제목 없음',
+      lastEdited: DateTime.now(),
+      parentId: parentPage.id,
+      parentPage: parentPage,
+    );
 
-      try {
-        final repository = Provider.of<PageRepository>(context, listen: false);
-        await repository.createPage(newSubPage);
+    try {
+      final repository = Provider.of<PageRepository>(context, listen: false);
+      await repository.createPage(newSubPage);
 
-        setState(() {
-          parentPage.subPages.add(newSubPage);
-          parentPage.isExpanded = true;
-        });
-      } catch (e) {
-        debugPrint('하위 페이지 생성 실패: $e');
-      }
+      setState(() {
+        parentPage.subPages.add(newSubPage);
+        parentPage.isExpanded = true;
+      });
+    } catch (e) {
+      debugPrint('하위 페이지 생성 실패: $e');
+    }
   }
   
   void _toggleExpand(PageData page) {
@@ -334,68 +383,205 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
           }
         });
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('즐겨찾기 토글 실패: $e');
+    }
   }
 
-  void _duplicatePage(PageData page) { /* 복제 로직 */ }
+  void _duplicatePage(PageData page) {
+    // 복제 로직 구현 필요
+  }
   
   Future<void> _showMovePageDialog(PageData page) async {
-      await showDialog(
-        context: context, 
-        builder: (_) => _MovePageDialog(allPages: _personalPages, currentPage: page)
-      );
+    await showDialog(
+      context: context, 
+      builder: (_) => _MovePageDialog(allPages: _personalPages, currentPage: page)
+    );
   }
 
   Future<bool> _confirmDeletePage(PageData page) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('페이지 삭제'),
-        content: const Text('휴지통으로 이동하시겠습니까?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제')),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      try {
-        final repository = Provider.of<PageRepository>(context, listen: false);
-        await repository.moveToTrash(page.id);
-        if (mounted) {
-          setState(() {
-             // 트리 구조에서 제거
-             if(page.parentPage != null) {
-                page.parentPage!.subPages.remove(page);
-             } else {
-                _personalPages.remove(page);
-             }
-             _favoritePages.remove(page);
-             _recentPages.removeWhere((item) => item['pageId'] == page.id);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('휴지통으로 이동됨')));
-        }
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  }
+  final subPageCount = _countAllSubPages(page);
+  final message = subPageCount > 0
+      ? '이 페이지와 하위 페이지 $subPageCount개를 휴지통으로 이동하시겠습니까?'
+      : '휴지통으로 이동하시겠습니까?';
   
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('페이지 삭제'),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          child: const Text('삭제'),
+        ),
+      ],
+    ),
+  );
+
+  if (result == true) {
+    try {
+      final repository = Provider.of<PageRepository>(context, listen: false);
+      
+      // ✅ 1단계: 삭제될 모든 페이지 ID 수집
+      final List<String> allDeletedIds = [];
+      _collectAllPageIds(page, allDeletedIds);
+      
+      debugPrint('🗑️ 삭제할 페이지들: ${allDeletedIds.length}개');
+      for (var id in allDeletedIds) {
+        debugPrint('  - $id');
+      }
+      
+      // ✅ 2단계: Firestore에서 삭제
+      await repository.moveToTrash(page.id);
+      
+      if (!mounted) return false;
+      
+      // ✅ 3단계: 즉시 전체 리로드 (UI 동기화)
+      await _loadPages();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${allDeletedIds.length}개 페이지를 휴지통으로 이동했습니다')),
+      );
+      
+      return true;
+    } catch (e) {
+      debugPrint('❌ 삭제 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('삭제 실패: $e')),
+        );
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
+
+// ✅ 페이지와 모든 하위 페이지의 ID를 수집
+void _collectAllPageIds(PageData page, List<String> result) {
+  result.add(page.id);
+  for (var sub in page.subPages) {
+    _collectAllPageIds(sub, result);  // 재귀
+  }
+}
+
+// ✅ 하위 페이지 개수 계산
+int _countAllSubPages(PageData page) {
+  int count = page.subPages.length;
+  for (var sub in page.subPages) {
+    count += _countAllSubPages(sub);
+  }
+  return count;
+}
+
   void _openSettings() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    Navigator.push(
+      context, 
+      MaterialPageRoute(builder: (_) => const SettingsScreen())
+    );
   }
 
   void _openTrash() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const TrashScreen())).then((_) => _loadPages());
+  Navigator.push(
+    context, 
+    MaterialPageRoute(builder: (_) => const TrashScreen())
+  ).then((_) {
+    // ✅ 휴지통에서 돌아오면 무조건 전체 리로드
+    if (mounted) _loadPages();
+  });
+}
+
+  // ✅ 새로운 메서드: 휴지통 이후 최소한의 갱신
+  // ✅ 새로운 메서드: 휴지통 이후 최소한의 갱신
+Future<void> _refreshPagesAfterTrash() async {
+  try {
+    final repository = Provider.of<PageRepository>(context, listen: false);
+    final freshPages = await repository.getAllPages();
+    
+    if (!mounted) return;
+
+    // ✅ Firestore의 최신 페이지 ID 목록
+    final freshPageIds = freshPages.map((p) => p.id).toSet();
+    
+    // ✅ 현재 메모리에 있는 모든 페이지 수집
+    final Map<String, PageData> currentPageMap = {};
+    for (var root in _personalPages) {
+      _collectPagesRecursively(root, currentPageMap);
+    }
+    
+    // ✅ 삭제된 페이지 + 고아 페이지(부모가 삭제된 하위) 제거
+    final deletedPageIds = currentPageMap.keys.toSet().difference(freshPageIds);
+    
+    debugPrint('🗑️ 휴지통 이후 삭제된 페이지: ${deletedPageIds.length}개');
+    
+    for (var deletedId in deletedPageIds) {
+      final deletedPage = currentPageMap[deletedId]!;
+      
+      if (deletedPage.parentPage != null) {
+        // 자식 페이지면 부모의 subPages에서 제거
+        deletedPage.parentPage!.subPages.remove(deletedPage);
+      } else {
+        // 루트 페이지면 _personalPages에서 제거
+        _personalPages.remove(deletedPage);
+      }
+      
+      _favoritePages.remove(deletedPage);
+      _recentPages.removeWhere((item) => item['pageId'] == deletedId);
+    }
+    
+    // ✅ 복원된 페이지 OR 고아 페이지가 발견되면 전체 리로드
+    final newPageIds = freshPageIds.difference(currentPageMap.keys.toSet());
+    
+    // ✅ 추가 체크: 기존 페이지 중에 부모가 사라진 페이지가 있는지 확인
+    bool hasOrphanPages = false;
+    for (var currentPage in currentPageMap.values) {
+      if (currentPage.parentId != null && currentPage.parentId!.isNotEmpty) {
+        // 부모 ID가 있는데 현재 메모리에 부모가 없으면 고아 페이지
+        if (!currentPageMap.containsKey(currentPage.parentId!)) {
+          hasOrphanPages = true;
+          debugPrint('👶 고아 페이지 발견: ${currentPage.title} (부모 ID: ${currentPage.parentId})');
+          break;
+        }
+      }
+    }
+    
+    if (newPageIds.isNotEmpty || hasOrphanPages) {
+      // 복원된 페이지가 있거나 고아 페이지가 있으면 전체 리로드
+      debugPrint('✅ 복원 ${newPageIds.length}개 또는 고아 페이지 발견 -> 전체 리로드');
+      await _loadPages();
+    } else {
+      // 삭제만 있었으면 setState만
+      if (mounted) {
+        setState(() {});
+        debugPrint('✅ 휴지통 이후 갱신: 삭제 ${deletedPageIds.length}개만 반영');
+      }
+    }
+    
+  } catch (e) {
+    debugPrint('❌ 휴지통 이후 갱신 실패: $e');
+    // 실패하면 안전하게 전체 리로드
+    if (mounted) await _loadPages();
   }
+}
+
   
   void _openSearch() {
-     Navigator.push(context, MaterialPageRoute(
-        builder: (_) => SearchScreen(allPages: _personalPages, onNewPage: (ctx) => _createNewPageAndOpen(ctx))
-     ));
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (_) => SearchScreen(
+          allPages: _personalPages, 
+          onNewPage: (ctx) => _createNewPageAndOpen(ctx)
+        )
+      )
+    );
   }
 
   // ===========================================================================
@@ -407,7 +593,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     final userEmail = _currentUser?.email;
     final userName = userEmail != null ? userEmail.split('@')[0] : '게스트';
     
-
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -481,12 +666,9 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                   final recent = _recentPages[index];
                   final pageId = recent['pageId'] as String;
 
-                  // 1. pageId로 실제 PageData 객체 찾기
-                  // (_getAllPages() 함수가 정의되어 있어야 합니다)
                   final allPages = _getAllPages(); 
                   final targetPage = allPages.firstWhereOrNull((p) => p.id == pageId);
 
-                  // 페이지가 삭제되었거나 없으면 빈 공간 표시
                   if (targetPage == null) return const SizedBox.shrink();
 
                   return Container(
@@ -495,7 +677,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
                         title: recent['title'], 
                         icon: recent['icon'], 
                         color: recent['color'],
-                        // ★★★ [핵심 수정] 클릭 시 페이지 열기 연결 ★★★
                         onTap: () => _openPage(targetPage),
                      ),
                   );
@@ -592,8 +773,6 @@ class _MovePageDialogState extends State<_MovePageDialog> {
   PageData? _selectedPage;
 
   List<PageData> get _selectablePages {
-    // 트리 구조를 평탄화하거나, 루트 페이지만 보여주는 등 선택 로직 필요
-    // 여기서는 간단히 루트 페이지만 보여줌
     return widget.allPages.where((page) => page.id != widget.currentPage.id).toList();
   }
 
