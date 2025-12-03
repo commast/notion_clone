@@ -54,6 +54,7 @@ class PageData {
     bool? isExpanded,
     List<PageData>? subPages,
     PageData? parentPage,
+    String? parentId, 
   }) {
     return PageData(
       id: id ?? this.id,
@@ -63,6 +64,7 @@ class PageData {
       isExpanded: isExpanded ?? this.isExpanded,
       subPages: subPages ?? List.from(this.subPages),
       parentPage: parentPage ?? this.parentPage,
+      parentId: parentId ?? this.parentId, 
     );
   }
 

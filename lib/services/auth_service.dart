@@ -1,9 +1,13 @@
 // lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
 
   // 현재 사용자 가져오기
   User? get currentUser => _auth.currentUser;
@@ -175,4 +179,44 @@ class AuthService {
       return false;
     }
   }
+
+  Future<bool> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('로그인된 사용자가 없습니다.');
+      final uid = user.uid;
+
+      // 1) Firestore 데이터 삭제
+      // pages
+      final pagesSnap = await _firestore
+          .collection('pages')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in pagesSnap.docs) {
+        await doc.reference.delete();
+      }
+
+      // trash
+      final trashSnap = await _firestore
+          .collection('trash')
+          .where('userId', isEqualTo: uid)
+          .get();
+      for (var doc in trashSnap.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2) FirebaseAuth 계정 삭제
+      await user.delete();
+
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('계정 삭제 실패(FirebaseAuth): $e');
+      return false;
+    } catch (e) {
+      debugPrint('계정/데이터 삭제 실패: $e');
+      return false;
+    }
+  }
 }
+
+

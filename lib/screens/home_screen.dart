@@ -388,16 +388,100 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     }
   }
 
-  void _duplicatePage(PageData page) {
-    // 복제 로직 구현 필요
+  void _duplicatePage(PageData page) async {
+    try {
+      final repository = Provider.of<PageRepository>(context, listen: false);
+
+      // 1. 새 페이지 메타 생성
+      final newPage = PageData(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '${page.title} 사본',
+        lastEdited: DateTime.now(),
+        isFavorite: page.isFavorite,
+        parentId: page.parentId,
+        parentPage: page.parentPage,
+      );
+
+      // 2. Firestore에 새 페이지 생성
+      await repository.createPage(newPage);
+
+      // 3. 블록 복사
+      final originalBlocks = await repository.getBlocks(page.id);
+      await repository.saveBlocks(
+        newPage.id,
+        originalBlocks,
+      );
+
+      // 4. 메모리 트리 갱신
+      setState(() {
+        if (page.parentPage != null) {
+          page.parentPage!.subPages.add(newPage);
+          page.parentPage!.isExpanded = true;
+        } else {
+          _personalPages.insert(0, newPage);
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('페이지 복제 완료: ${newPage.title}')),
+        );
+      }
+    } catch (e) {
+      debugPrint('페이지 복제 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('페이지 복제 실패: $e')));
+      }
+    }
   }
+
   
   Future<void> _showMovePageDialog(PageData page) async {
-    await showDialog(
-      context: context, 
-      builder: (_) => _MovePageDialog(allPages: _personalPages, currentPage: page)
+    final targetParent = await showDialog<PageData>(
+      context: context,
+      builder: (_) => _MovePageDialog(
+        allPages: _personalPages,
+        currentPage: page,
+      ),
     );
+
+    if (targetParent == null) return; // 취소한 경우
+
+    try {
+      final repository = Provider.of<PageRepository>(context, listen: false);
+
+      // 2) Firestore에 parentId 업데이트
+      final updated = page.copyWith(
+        parentId: targetParent.id,
+        parentPage: targetParent,
+      );
+      await repository.updatePage(updated);
+
+      // 3) 메모리 트리 갱신
+      setState(() {
+        // 기존 부모에서 제거
+        if (page.parentPage != null) {
+          page.parentPage!.subPages.remove(page);
+        } else {
+          _personalPages.remove(page);
+        }
+
+        // 새 부모에 추가
+        page.parentPage = targetParent;
+        page.parentId = targetParent.id;
+        targetParent.subPages.add(page);
+        targetParent.isExpanded = true;
+      });
+    } catch (e) {
+      debugPrint('페이지 이동 실패: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('페이지 이동 실패: $e')),
+      );
+    }
   }
+
 
   Future<bool> _confirmDeletePage(PageData page) async {
   final subPageCount = _countAllSubPages(page);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../services/auth_service.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -12,27 +13,47 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   
   void _showDeleteAccountDialog() {
+    // 🔹 SettingsScreen 의 context 를 로컬 변수로 캡처
+    final parentContext = context;
+
     showDialog(
-      context: context,
-      builder: (context) {
+      context: parentContext,
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('계정 삭제'),
           content: const Text('정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext), // 다이얼로그만 닫기
               child: const Text('취소'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // 계정 삭제 완료 메시지
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('계정이 삭제되었습니다.'),
-                    duration: Duration(seconds: 2),
+              onPressed: () async {
+                Navigator.pop(dialogContext); // 다이얼로그 닫기
+
+                final authService = Provider.of<AuthService>(parentContext, listen: false);
+                final success = await authService.deleteAccount();
+
+                // 🔹 SettingsScreen 이 살아있는지 확인
+                if (!mounted) return;
+
+                // 🔹 SnackBar 는 SettingsScreen 의 context 로
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '계정 및 데이터를 삭제했습니다.'
+                          : '계정 삭제에 실패했습니다. 최근 로그인 후 다시 시도해 주세요.',
+                    ),
+                    duration: const Duration(seconds: 3),
                   ),
                 );
+
+                // 🔹 성공/실패 상관없이 SettingsScreen 닫고 싶으면:
+                Navigator.pop(parentContext);
+
+                // 만약 성공일 때만 닫고 싶으면 위 줄 대신:
+                // if (success) Navigator.pop(parentContext);
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('삭제'),
@@ -42,6 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
   }
+
+
 
   void _showPasswordChangeDialog() {
     showDialog(

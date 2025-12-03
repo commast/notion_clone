@@ -66,6 +66,7 @@ class PageRepository {
         'title': page.title,
         'lastEdited': page.lastEdited.toIso8601String(),
         'isFavorite': page.isFavorite,
+        'parentId': page.parentId,
       }, _userId);
       
       return pageId;
@@ -82,6 +83,7 @@ class PageRepository {
         'title': page.title,
         'lastEdited': page.lastEdited.toIso8601String(),
         'isFavorite': page.isFavorite,
+         'parentId': page.parentId, 
       }, _userId);
     } catch (e) {
       debugPrint('❌ [Repository] updatePage 실패: $e');
