@@ -6,12 +6,14 @@ class BlockData {
   dynamic content;
   Color? textColor;        // 추가
   Color? backgroundColor;  // 추가
+  String? targetPageId;
 
   BlockData({
     required this.type,
     required this.content,
     this.textColor,
     this.backgroundColor,
+    this.targetPageId,
   });
 }
 

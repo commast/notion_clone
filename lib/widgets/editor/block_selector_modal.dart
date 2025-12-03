@@ -23,6 +23,7 @@ class BlocSelectorModal extends StatelessWidget {
     
     // 특수 블록
     {'icon': '📄', 'title': '페이지', 'subtitle': '하위 페이지 생성', 'type': 'page', 'category': '특수'},
+    {'icon': '🔗', 'title': '페이지 링크', 'subtitle': '다른 페이지로 이동', 'type': 'page_link', 'category': '특수'},
     {'icon': '💡', 'title': '콜아웃', 'subtitle': '강조 박스', 'type': 'callout', 'category': '특수'},
     {'icon': '❝', 'title': '인용', 'subtitle': '인용문 블록', 'type': 'quote', 'category': '특수'},
     {'icon': '—', 'title': '구분선', 'subtitle': '섹션 구분', 'type': 'divider', 'category': '특수'},

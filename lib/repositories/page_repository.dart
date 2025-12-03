@@ -117,6 +117,7 @@ class PageRepository {
           content: json['content'],
           textColor: textColor,
           backgroundColor: backgroundColor,
+          targetPageId: json['targetPageId'] as String?,
         );
       }).toList();
     } catch (e) {
@@ -134,6 +135,7 @@ class PageRepository {
           'content': block.content,
           'textColor': block.textColor?.value, 
           'backgroundColor': block.backgroundColor?.value,
+          'targetPageId': block.targetPageId, 
         };
       }).toList();
       

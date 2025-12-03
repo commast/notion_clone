@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/common/notion_bottom_bar.dart';
 import '../widgets/home/recent_page_card.dart';
 import '../widgets/home/personal_page_tile.dart';
+import '../widgets/common/move_page_dialog.dart';
 
 // 데이터 및 화면
 import '../data/page_data.dart';
@@ -440,7 +441,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
   Future<void> _showMovePageDialog(PageData page) async {
     final targetParent = await showDialog<PageData>(
       context: context,
-      builder: (_) => _MovePageDialog(
+      builder: (_) => MovePageDialog(
         allPages: _personalPages,
         currentPage: page,
       ),

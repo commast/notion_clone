@@ -10,6 +10,7 @@ import '../data/page_data.dart';
 import '../utils/font_provider.dart';
 
 import '../widgets/common/notion_bottom_bar.dart';
+import '../widgets/common/move_page_dialog.dart';
 
 import '../widgets/editor/editable_text_block.dart';
 import '../widgets/editor/keyboard_accessory_bar.dart';
@@ -73,6 +74,44 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
   bool get canUndo => _undoStack.isNotEmpty;
 
+  List<PageData> _getAllPages() {
+    final roots = widget.allPages ?? [];
+    final result = <PageData>[];
+
+    void collect(PageData page) {
+      result.add(page);
+      for (final sub in page.subPages) {
+        collect(sub);
+      }
+    }
+
+    for (final root in roots) {
+      collect(root);
+    }
+
+    return result;
+  }
+
+  void _openPage(PageData page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotionPageScreen(
+          page: page,
+          onNewPage: widget.onNewPage,
+          onPageChanged: widget.onPageChanged,
+          onFavoriteToggle: widget.onFavoriteToggle,
+          onDuplicate: widget.onDuplicate,
+          onMove: widget.onMove,
+          onDelete: widget.onDelete,
+          allPages: widget.allPages,
+          onPageCreated: widget.onPageCreated,
+        ),
+      ),
+    );
+  }
+
+  
   @override
   void initState() {
     super.initState();
@@ -560,6 +599,38 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           _currentBlocks.add(BlockData(type: 'chart', content: null));
         });
         break;
+
+      case 'page_link':
+        // 1) 링크할 페이지 선택
+        if (widget.allPages == null || widget.allPages!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('링크할 수 있는 페이지가 없습니다.')),
+          );
+          break;
+        }
+
+        final selectedPage = await showDialog<PageData>(
+          context: context,
+          builder: (_) => MovePageDialog(
+            allPages: widget.allPages!,
+            currentPage: widget.page,
+          ),
+        );
+
+        if (selectedPage == null) break;
+
+        // 2) 링크 블록 추가
+        setState(() {
+          _currentBlocks.add(
+            BlockData(
+              type: 'page_link',
+              content: selectedPage.title,
+              targetPageId: selectedPage.id,
+            ),
+          );
+        });
+        break;
+
         
       default:
         setState(() {
@@ -1152,7 +1223,36 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                 case 'image':
                   blockWidget = ImageBlock(imageFile: File(block.content as String));
                   break;
-                
+                case 'page_link':
+                  blockWidget = PageLinkBlock(
+                    pageTitle: block.content as String,
+                    onTap: () {
+                      final targetId = block.targetPageId;
+                      if (targetId == null || targetId.isEmpty) return;
+
+                      final allPages = _getAllPages();
+
+                      PageData? targetPage;
+                      try {
+                        targetPage = allPages.firstWhere((p) => p.id == targetId);
+                      } catch (_) {
+                        targetPage = null;
+                      }
+
+                      if (targetPage == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('대상 페이지를 찾을 수 없습니다.')),
+                        );
+                        return;
+                      }
+
+                      _openPage(targetPage);
+                    },
+                  );
+                  break;
+
+
+
                 default:
                   blockWidget = const SizedBox.shrink();
               }
