@@ -1204,22 +1204,58 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   break;
                 
                 case 'code':
-                  blockWidget = CodeBlock(key: ValueKey(block));
-                  break;
-                
-                case 'chart':
-                  blockWidget = NotionChart(key: ValueKey(block));
-                  break;
-                
-                case 'table':
-                  final Map<String, int> size = block.content as Map<String, int>;
-                  blockWidget = NotionTable(
-                    rows: size['rows']!,
-                    cols: size['cols']!,
+                  blockWidget = CodeBlock(
                     key: ValueKey(block),
+                    initialCode: (block.content as String?) ?? '',
+                    onChanged: (val) {
+                      setState(() {
+                        block.content = val;
+                      });
+                    },
                   );
                   break;
-                
+
+                case 'chart':
+                  final raw = (block.content as List?) ?? [];
+                  final data = raw.map((e) {
+                    final map = Map<String, dynamic>.from(e as Map);
+                    final colorVal = map['color'];
+                    map['color'] = colorVal is int ? Color(colorVal) : colorVal;
+                    return map;
+                  }).toList();
+
+                  blockWidget = NotionChart(
+                    key: ValueKey(block),
+                    initialData: data,
+                    onChanged: (serializedData) {
+                      setState(() {
+                        block.content = serializedData; //Color 없는 JSON으로만 저장
+                      });
+                    },
+                  );
+                  break;
+
+                case 'table':
+                  final Map<String, dynamic> tableData =
+                      (block.content as Map?)?.cast<String, dynamic>() ??
+                      {
+                        'rows': 3,
+                        'cols': 3,
+                        'cells': <String, String>{}, // 처음엔 빈 Map
+                      };
+
+                  blockWidget = NotionTable(
+                    key: ValueKey(block),
+                    data: tableData,
+                    onChanged: (newData) {
+                      setState(() {
+                        block.content = newData; // rows, cols, cells(Map) 저장
+                      });
+                    },
+                  );
+                  break;
+
+
                 case 'image':
                   blockWidget = ImageBlock(imageFile: File(block.content as String));
                   break;

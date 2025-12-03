@@ -1,25 +1,59 @@
 import 'package:flutter/material.dart';
 
 class NotionChart extends StatefulWidget {
-  const NotionChart({super.key});
+  final List<Map<String, dynamic>> initialData;
+  final ValueChanged<List<Map<String, dynamic>>>? onChanged;
+
+  const NotionChart({
+    super.key,
+    this.initialData = const [],
+    this.onChanged,
+  });
 
   @override
   State<NotionChart> createState() => _NotionChartState();
 }
 
+
 class _NotionChartState extends State<NotionChart> {
-  List<Map<String, dynamic>> _data = [
-    {'label': '1분기', 'value': 80.0, 'color': const Color(0xFF676EFF)},
-    {'label': '2분기', 'value': 60.0, 'color': const Color(0xFFF06543)},
-    {'label': '3분기', 'value': 95.0, 'color': const Color(0xFF43A047)},
-    {'label': '4분기', 'value': 40.0, 'color': const Color(0xFFFFCC00)},
-  ];
+  late List<Map<String, dynamic>> _data;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialData.isNotEmpty) {
+      _data = widget.initialData
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } else {
+      _data = [
+        {'label': '1분기', 'value': 80.0, 'color': const Color(0xFF676EFF)},
+        {'label': '2분기', 'value': 60.0, 'color': const Color(0xFFF06543)},
+        {'label': '3분기', 'value': 95.0, 'color': const Color(0xFF43A047)},
+        {'label': '4분기', 'value': 40.0, 'color': const Color(0xFFFFCC00)},
+      ];
+    }
+  }
 
   void _updateChartData(List<Map<String, dynamic>> newData) {
     setState(() {
       _data = newData;
     });
+
+    if (widget.onChanged != null) {
+      // Color -> int 직렬화
+      final serialized = newData
+          .map((item) => {
+                'label': item['label'],
+                'value': item['value'],
+                'color': (item['color'] as Color).value,
+              })
+          .toList();
+
+      widget.onChanged!(serialized);
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {

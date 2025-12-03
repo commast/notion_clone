@@ -10,17 +10,24 @@ import 'package:highlight/languages/cpp.dart';
 // 필요한 언어를 여기서 추가 import 하세요.
 
 class CodeBlock extends StatefulWidget {
-  const CodeBlock({super.key});
+  final String initialCode;
+  final ValueChanged<String>? onChanged; 
+
+  const CodeBlock({
+    super.key,
+    this.initialCode = '',
+    this.onChanged,
+  });
 
   @override
   State<CodeBlock> createState() => _CodeBlockState();
 }
 
+
 class _CodeBlockState extends State<CodeBlock> {
   late CodeController _codeController;
   String _selectedLanguage = 'Dart';
 
-  // 지원할 언어 목록 매핑
   final Map<String, dynamic> _languageMap = {
     'Dart': dart,
     'Python': python,
@@ -32,11 +39,20 @@ class _CodeBlockState extends State<CodeBlock> {
   @override
   void initState() {
     super.initState();
-    // 초기 코드와 언어 설정
+
     _codeController = CodeController(
-      text: "void main() {\n  print('Hello Notion!');\n}",
+      text: widget.initialCode.isNotEmpty
+          ? widget.initialCode
+          : "void main() {\n  print('Hello Notion!');\n}",   // 기본 코드
       language: dart,
     );
+
+    // 코드 변경 시 부모로 알려주기
+    _codeController.addListener(() {
+      if (widget.onChanged != null) {
+        widget.onChanged!(_codeController.text);
+      }
+    });
   }
 
   @override
