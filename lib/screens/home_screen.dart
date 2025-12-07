@@ -125,6 +125,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         lastEdited: page.lastEdited,
         isFavorite: page.isFavorite,
         parentId: page.parentId,
+        teamSpaceId: page.teamSpaceId, 
       );
       pageMap[page.id] = newPage;
       
@@ -674,7 +675,11 @@ Future<void> _refreshPagesAfterTrash() async {
   // ===========================================================================
   @override
   Widget build(BuildContext context) {
+    debugPrint('🏠 NotionHomeScreen build: isLoading=$_isLoading, error=$_errorMessage');
     // 사용자 이름 표시
+    final allPages = _getFlattenedPages();
+    final personalPages = allPages.where((p) => p.teamSpaceId == null).toList();
+    final teamPages = allPages.where((p) => p.teamSpaceId != null).toList();
     final userEmail = _currentUser?.email;
     final userName = userEmail != null ? userEmail.split('@')[0] : '게스트';
     
@@ -810,9 +815,8 @@ Future<void> _refreshPagesAfterTrash() async {
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final flattenedPages = _getFlattenedPages();
-                final page = flattenedPages[index];
-                
+                final page = personalPages[index];
+                final isTeamPage = page.teamSpaceId != null;
                 return PersonalPageTile(
                   title: page.title,
                   isFavorite: page.isFavorite,
@@ -823,14 +827,48 @@ Future<void> _refreshPagesAfterTrash() async {
                   onAddSubPage: () => _addSubPage(page),
                   onToggleExpand: page.subPages.isNotEmpty ? () => _toggleExpand(page) : null,
                   onFavorite: () => _toggleFavorite(page),
-                  onMove: () => _showMovePageDialog(page),
+                  onMove: isTeamPage ? null : () => _showMovePageDialog(page),
                   onDuplicate: () => _duplicatePage(page),
                   onDelete: () => _confirmDeletePage(page),
                 );
               },
-              childCount: _getFlattenedPages().length,
+              childCount: personalPages.length,
             ),
           ),
+          // 팀 스페이스 섹션
+          if (teamPages.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                child: const Text(
+                  '팀 스페이스',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final page = teamPages[index];
+                  return PersonalPageTile(
+                    title: page.title,
+                    isFavorite: page.isFavorite,
+                    isExpanded: page.isExpanded,
+                    hasSubPages: page.subPages.isNotEmpty,
+                    level: page.level,
+                    onTap: () => _openPage(page),
+                    onAddSubPage: () => _addSubPage(page),
+                    onToggleExpand: page.subPages.isNotEmpty ? () => _toggleExpand(page) : null,
+                    onFavorite: () => _toggleFavorite(page),
+                    onMove: null, 
+                    onDuplicate: () => _duplicatePage(page),
+                    onDelete: () => _confirmDeletePage(page),
+                  );
+                },
+                childCount: teamPages.length,
+              ),
+            ),
+          ],
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),

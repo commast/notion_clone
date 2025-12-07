@@ -35,6 +35,7 @@ class PageData {
   List<PageData> subPages; 
   PageData? parentPage;
   String? parentId; 
+  String? teamSpaceId; 
 
   PageData({
     required this.id,
@@ -43,6 +44,7 @@ class PageData {
     this.isFavorite = false,
     this.isExpanded = false,
     this.parentId,
+    this.teamSpaceId, 
     List<PageData>? subPages,
     this.parentPage,
   }) : subPages = subPages ?? [];
@@ -56,7 +58,8 @@ class PageData {
     bool? isExpanded,
     List<PageData>? subPages,
     PageData? parentPage,
-    String? parentId, 
+    String? parentId,
+    String? teamSpaceId, 
   }) {
     return PageData(
       id: id ?? this.id,
@@ -66,7 +69,8 @@ class PageData {
       isExpanded: isExpanded ?? this.isExpanded,
       subPages: subPages ?? List.from(this.subPages),
       parentPage: parentPage ?? this.parentPage,
-      parentId: parentId ?? this.parentId, 
+      parentId: parentId ?? this.parentId,
+      teamSpaceId: teamSpaceId ?? this.teamSpaceId,
     );
   }
 

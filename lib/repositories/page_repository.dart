@@ -1,5 +1,4 @@
 import '../data/page_data.dart';
-import '../data/block_data.dart'; 
 import '../services/api_service.dart';
 import '../services/auth_service.dart'; 
 import 'package:flutter/material.dart';
@@ -33,6 +32,7 @@ class PageRepository {
           lastEdited: DateTime.parse(json['lastEdited'] as String),
           isFavorite: json['isFavorite'] as bool? ?? false,
           parentId: json['parentId'] as String?,
+          teamSpaceId: json['teamSpaceId'] as String?,
         );
       }).toList();
     } catch (e) {
@@ -50,6 +50,7 @@ class PageRepository {
         title: pageJson['title'] as String,
         lastEdited: DateTime.parse(pageJson['lastEdited'] as String),
         isFavorite: pageJson['isFavorite'] as bool? ?? false,
+        teamSpaceId: pageJson['teamSpaceId'] as String?,
       );
     } catch (e) {
       debugPrint('❌ [Repository] getPage 실패: $e');
@@ -67,6 +68,7 @@ class PageRepository {
         'lastEdited': page.lastEdited.toIso8601String(),
         'isFavorite': page.isFavorite,
         'parentId': page.parentId,
+        'teamSpaceId': page.teamSpaceId, 
       }, _userId);
       
       return pageId;
@@ -225,5 +227,23 @@ class PageRepository {
       debugPrint('❌ [Repository] uploadImage 실패: $e');
       rethrow;
     }
+  }
+
+  Future<void> promotePageToTeam({
+    required String pageId,
+    required List<String> memberUids,
+  }) async {
+    final userId = _userId;
+    if (userId.isEmpty) {
+      throw Exception('로그인 상태에서만 팀 페이지로 전환할 수 있습니다.');
+    }
+
+    final firestore = _apiService as FirestoreApiService;
+
+    await firestore.promotePageToTeam(
+      pageId: pageId,
+      ownerUid: userId,
+      memberUids: memberUids,
+    );
   }
 }

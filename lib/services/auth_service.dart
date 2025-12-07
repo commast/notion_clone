@@ -34,6 +34,11 @@ class AuthService {
         password: password,
       );
 
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       // 이메일 인증 링크 발송
       await userCredential.user?.sendEmailVerification();
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../repositories/page_repository.dart';
 
 import '../data/page_data.dart';
@@ -696,6 +697,162 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     );
   }
 
+  void _showMembersDialog() async {
+    final controller = TextEditingController();
+    final repo = Provider.of<PageRepository>(context, listen: false);
+    final firestore = FirebaseFirestore.instance;
+
+    // 🔹 항상 최신 페이지 문서를 Firestore에서 읽어서 teamSpaceId 가져오기
+    final pageSnap =
+        await firestore.collection('pages').doc(widget.page.id).get();
+    final data = pageSnap.data();
+    final String? teamSpaceId = data?['teamSpaceId'] as String?;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('팀원 초대'),
+          content: SizedBox(
+            width: 300,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (teamSpaceId != null)
+                    SizedBox(               // 🔹 ListView에 높이 고정
+                      height: 120,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: firestore
+                            .collection('teamMembers')
+                            .where('teamSpaceId', isEqualTo: teamSpaceId)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final docs = snapshot.data!.docs;
+                          if (docs.isEmpty) {
+                            return const Center(
+                              child: Text('아직 팀원이 없습니다.'),
+                            );
+                          }
+                          return ListView.builder(
+                            itemCount: docs.length,
+                            itemBuilder: (context, index) {
+                              final m = docs[index].data() as Map<String, dynamic>;
+                              final role = m['role'] ?? 'member';
+                              final uid  = m['userUid'] ?? '';
+
+                              return FutureBuilder<DocumentSnapshot>(
+                                future: firestore.collection('users').doc(uid).get(),
+                                builder: (context, userSnap) {
+                                  String emailText = uid; // fallback
+                                  if (userSnap.hasData && userSnap.data!.data() != null) {
+                                    final u = userSnap.data!.data() as Map<String, dynamic>;
+                                    emailText = u['email'] ?? uid;
+                                  }
+
+                                  return ListTile(
+                                    dense: true,
+                                    leading: const Icon(Icons.person, size: 20),
+                                    title: Text(emailText),   // 🔹 이메일 표시
+                                    subtitle: Text(role),     // owner / editor
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: controller,
+                    decoration:
+                        const InputDecoration(labelText: '이메일 입력'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final email = controller.text.trim();
+                debugPrint('🔹 invite pressed: $email');
+                if (email.isEmpty) return;
+
+                try {
+                  final snap = await firestore
+                      .collection('users')
+                      .where('email', isEqualTo: email)
+                      .limit(1)
+                      .get();
+                  debugPrint('🔹 users query docs: ${snap.docs.length}');
+
+                  if (snap.docs.isEmpty) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('해당 이메일 사용자를 찾을 수 없습니다.')),
+                      );
+                    }
+                    return;
+                  }
+
+                  final invitedUid = snap.docs.first.id;
+                  debugPrint('🔹 invitedUid: $invitedUid');
+
+                  if (teamSpaceId == null) {
+                    // 첫 초대 → 팀 생성 + 초대
+                    await repo.promotePageToTeam(
+                      pageId: widget.page.id,
+                      memberUids: [invitedUid],
+                    );
+                    debugPrint('🔹 promotePageToTeam done (first invite)');
+                  } else {
+                    // 이미 팀이면 나중에: teamMembers에만 추가하는 로직 만들 수 있음
+                    debugPrint(
+                        '🔹 already team space: $teamSpaceId (추가 초대 로직 TODO)');
+                  }
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(teamSpaceId == null
+                            ? '팀 페이지로 전환 및 초대 완료'
+                            : '초대 처리 완료'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('🔸 invite error: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('초대 실패: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('초대'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+
+
   void _showPageNavigationDialog() {
     if (widget.allPages == null || widget.allPages!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -750,6 +907,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final previousPage = _previousPage;
     final nextPage = _nextPage;
     final hasNavigation = previousPage != null || nextPage != null;
+    final bool isTeamPage = widget.page.teamSpaceId != null;
 
       // 로딩 중일 때 로딩 화면 표시
     if (_isLoading) {
@@ -790,6 +948,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.group_add),
+            onPressed: _showMembersDialog,   // 이 함수는 곧 만들 것
+          ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
             onPressed: () => _showPageActionsMenu(),
@@ -1678,6 +1840,7 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
     final fontProvider = Provider.of<FontProvider>(context);
     final currentFont = fontProvider.getFontFamily(widget.page.id);
     final bool isFavorite = widget.page.isFavorite;
+    final bool isTeamPage = widget.page.teamSpaceId != null;
 
     return Container(
       decoration: const BoxDecoration(
@@ -1756,11 +1919,12 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
             onTap: widget.onDuplicate,
           ),
           
-          _ActionMenuItem(
-            icon: Icons.drive_file_move_outline,
-            title: '옮기기',
-            onTap: widget.onMove,
-          ),
+          if (!isTeamPage)
+            _ActionMenuItem(
+              icon: Icons.drive_file_move_outline,
+              title: '옮기기',
+              onTap: widget.onMove,
+            ),
           
           _ActionMenuItem(
             icon: Icons.delete_outline,

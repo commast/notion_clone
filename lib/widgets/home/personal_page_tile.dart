@@ -103,16 +103,17 @@ class PersonalPageTile extends StatelessWidget {
                 ),
               ),
               // 옮기기 메뉴 추가
-              const PopupMenuItem(
-                value: 'move',
-                child: Row(
-                  children: [
-                    Icon(Icons.drive_file_move_outline, size: 18),
-                    SizedBox(width: 12),
-                    Text('옮기기'),
-                  ],
+              if (onMove != null)
+                const PopupMenuItem(
+                  value: 'move',
+                  child: Row(
+                    children: [
+                      Icon(Icons.drive_file_move_outline, size: 18),
+                      SizedBox(width: 12),
+                      Text('옮기기'),
+                    ],
+                  ),
                 ),
-              ),
               const PopupMenuItem(
                 value: 'duplicate',
                 child: Row(

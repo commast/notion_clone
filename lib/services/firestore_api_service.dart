@@ -12,17 +12,48 @@ class FirestoreApiService implements ApiService {
   @override
   Future<List<Map<String, dynamic>>> fetchPages(String userId) async {
     try {
-      final snapshot = await _firestore
+      final fs = _firestore;
+
+      // 1) 내가 멤버로 속한 팀 스페이스 ID들
+      final memberSnap = await fs
+          .collection('teamMembers')
+          .where('userUid', isEqualTo: userId)
+          .get();
+
+      final teamSpaceIds = memberSnap.docs
+          .map((d) => d['teamSpaceId'] as String)
+          .toSet()
+          .toList();
+
+      // 2) 개인 페이지 (userId == 나, teamSpaceId == null)
+      final personalSnap = await fs
           .collection('pages')
           .where('userId', isEqualTo: userId)
+          .where('teamSpaceId', isNull: true)
           .orderBy('lastEdited', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      // 3) 팀 페이지 (내가 멤버인 teamSpace들)
+      QuerySnapshot<Map<String, dynamic>>? teamSnap;
+      if (teamSpaceIds.isNotEmpty) {
+        teamSnap = await fs
+            .collection('pages')
+            .where('teamSpaceId', whereIn: teamSpaceIds)
+            .orderBy('lastEdited', descending: true)
+            .get();
+      }
+
+      // 4) 개인 + 팀 페이지 합치기
+      final docs = <QueryDocumentSnapshot<Map<String, dynamic>>>[
+        ...personalSnap.docs,
+        if (teamSnap != null) ...teamSnap.docs,
+      ];
+
+      return docs.map((doc) {
         final data = doc.data();
         final lastEditedValue = data['lastEdited'];
         String lastEditedString;
-        
+
         if (lastEditedValue is Timestamp) {
           lastEditedString = lastEditedValue.toDate().toIso8601String();
         } else if (lastEditedValue is String) {
@@ -30,13 +61,14 @@ class FirestoreApiService implements ApiService {
         } else {
           lastEditedString = DateTime.now().toIso8601String();
         }
-        
+
         return {
           'id': doc.id,
           'title': data['title'] ?? '제목 없음',
           'lastEdited': lastEditedString,
           'isFavorite': data['isFavorite'] ?? false,
-          'parentId': data['parentId'] ?? '',  // ✅ 빈 문자열도 허용
+          'parentId': data['parentId'] ?? '',
+          'teamSpaceId': data['teamSpaceId'],
         };
       }).toList();
     } catch (e) {
@@ -44,6 +76,7 @@ class FirestoreApiService implements ApiService {
       rethrow;
     }
   }
+
 
   @override
   Future<Map<String, dynamic>> fetchPage(String pageId, String userId) async {
@@ -72,6 +105,7 @@ class FirestoreApiService implements ApiService {
         'lastEdited': lastEditedString,
         'isFavorite': data['isFavorite'] ?? false,
         'parentId': data['parentId'] ?? '',
+        'teamSpaceId': data['teamSpaceId'],
       };
     } catch (e) {
       debugPrint('[Firestore] fetchPage 실패: $e');
@@ -88,7 +122,8 @@ class FirestoreApiService implements ApiService {
         'title': pageData['title'],
         'lastEdited': pageData['lastEdited'],
         'isFavorite': pageData['isFavorite'] ?? false,
-        'parentId': pageData['parentId'] ?? '',  // ✅ 명시적으로 저장
+        'parentId': pageData['parentId'] ?? '',
+        'teamSpaceId': pageData['teamSpaceId'],
         'userId': userId,
       });
       
@@ -113,6 +148,9 @@ class FirestoreApiService implements ApiService {
       if (pageData.containsKey('parentId')) {
         updateData['parentId'] = pageData['parentId'] ?? '';
       }
+      if (pageData.containsKey('teamSpaceId')) {
+        updateData['teamSpaceId'] = pageData['teamSpaceId'];
+      }
       
       await _firestore.collection('pages').doc(pageId).update(updateData);
       
@@ -127,6 +165,48 @@ class FirestoreApiService implements ApiService {
   Future<void> deletePage(String pageId, String userId) async {
     await moveToTrash(pageId, userId);
   }
+  
+  Future<void> promotePageToTeam({
+    required String pageId,
+    required String ownerUid,
+    required List<String> memberUids,
+  }) async {
+    debugPrint('🔥 promotePageToTeam start: pageId=$pageId, owner=$ownerUid, members=$memberUids');
+    final batch = _firestore.batch();
+
+    final teamDoc = _firestore.collection('teamSpaces').doc();
+    batch.set(teamDoc, {
+      'name': '팀 페이지',
+      'ownerUid': ownerUid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    final membersCol = _firestore.collection('teamMembers');
+
+    batch.set(membersCol.doc(), {
+      'teamSpaceId': teamDoc.id,
+      'userUid': ownerUid,
+      'role': 'owner',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    for (final uid in memberUids) {
+      batch.set(membersCol.doc(), {
+        'teamSpaceId': teamDoc.id,
+        'userUid': uid,
+        'role': 'editor',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    batch.update(_firestore.collection('pages').doc(pageId), {
+      'teamSpaceId': teamDoc.id,
+    });
+
+    await batch.commit();
+    debugPrint('🔥 promotePageToTeam batch committed');
+  }
+
 
   @override
   Future<List<Map<String, dynamic>>> fetchBlocks(String pageId, String userId) async {
