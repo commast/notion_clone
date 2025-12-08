@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../data/page_data.dart';
-import '../repositories/page_repository.dart';
 import 'page_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -31,9 +29,9 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ 초기 상태에서 모든 페이지 표시 (평탄화)
+    // 초기 상태에서 모든 페이지 표시 
     _filteredPages = _getAllPagesFlattened();
-    debugPrint('✅ 검색 화면 초기화: ${_filteredPages.length}개 페이지');
+    debugPrint('검색 화면 초기화: ${_filteredPages.length}개 페이지');
   }
 
   @override
@@ -42,7 +40,7 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  // ✅ 모든 페이지를 평탄화하여 반환 (부모-자식 구분 없이)
+  // 모든 페이지를 평탄화하여 반환 (부모-자식 구분 없이)
   List<PageData> _getAllPagesFlattened() {
     List<PageData> result = [];
     
@@ -57,7 +55,7 @@ class _SearchScreenState extends State<SearchScreen> {
     
     addRecursively(widget.allPages);
     
-    debugPrint('📄 평탄화된 페이지: ${result.length}개');
+    debugPrint('평탄화된 페이지: ${result.length}개');
     for (var page in result) {
       debugPrint('  - ${page.title} (id: ${page.id}, parentId: ${page.parentId})');
     }
@@ -87,9 +85,9 @@ class _SearchScreenState extends State<SearchScreen> {
       _isSearching = query.isNotEmpty;
       
       if (query.isEmpty) {
-        // ✅ 검색어가 없으면 모든 페이지 표시
+        // 검색어가 없으면 모든 페이지 표시
         _filteredPages = _getAllPagesFlattened();
-        debugPrint('🔍 검색어 없음: 전체 ${_filteredPages.length}개 표시');
+        debugPrint('검색어 없음: 전체 ${_filteredPages.length}개 표시');
       } else {
         final lowerQuery = query.toLowerCase();
         final allFlattened = _getAllPagesFlattened();
@@ -103,12 +101,12 @@ class _SearchScreenState extends State<SearchScreen> {
             final titleMatch = page.title.toLowerCase().contains(lowerQuery);
             final idMatch = page.id.toLowerCase().contains(lowerQuery);
             
-            // ✅ 블록 내용 검색 제거 (성능 문제)
+            // 블록 내용 검색 제거
             return titleMatch || idMatch;
           }).toList();
         }
         
-        debugPrint('🔍 검색 결과: "${query}" -> ${_filteredPages.length}개');
+        debugPrint('검색 결과: "${query}" -> ${_filteredPages.length}개');
         _applySorting();
       }
     });
@@ -262,7 +260,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🎨 SearchScreen build: ${_filteredPages.length}개 페이지');
+    debugPrint('SearchScreen build: ${_filteredPages.length}개 페이지');
     
     return Scaffold(
       appBar: AppBar(
@@ -315,7 +313,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildBody() {
-    // 검색 기록 표시 (검색어가 없고 기록이 있을 때만)
+    // 검색 기록 표시 
     if (!_isSearching && _searchController.text.isEmpty && _searchHistory.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +360,7 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
     
-    // ✅ 페이지 목록 표시 (검색어 없을 때도 모든 페이지 표시)
+    // 페이지 목록 표시 
     if (_filteredPages.isEmpty) {
       return Center(
         child: Column(
@@ -385,7 +383,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ✅ 페이지 개수 표시
+        // 페이지 개수 표시
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
@@ -420,7 +418,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ 계층 구조 표시 (부모 > 자식)
+                    // 계층 구조 표시 (부모 > 자식)
                     if (pagePath != page.title)
                       Text(
                         pagePath,

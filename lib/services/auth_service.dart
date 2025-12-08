@@ -1,4 +1,3 @@
-// lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -75,7 +74,7 @@ class AuthService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('로그인된 사용자가 없습니다.');
 
-      // 1. 재인증 (Re-authenticate): 보안상 중요 작업 전에는 본인 확인이 필요합니다.
+      // 1. 재인증 : 보안상 중요 작업 전에는 본인 확인이 필요합니다.
       final email = user.email;
       if (email == null) throw Exception('이메일 정보를 찾을 수 없습니다.');
       
@@ -92,7 +91,6 @@ class AuthService {
       return true;
     } catch (e) {
       debugPrint('비밀번호 변경 실패: $e');
-      // 에러 메시지를 조금 더 구체적으로 처리하고 싶다면 여기서 throw e; 해도 됩니다.
       return false;
     }
   }

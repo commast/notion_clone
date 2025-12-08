@@ -8,8 +8,6 @@ import 'firebase_options.dart';
 
 // 화면 및 서비스 임포트
 import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/email_verification_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/font_provider.dart';
 import 'utils/app_theme.dart';
@@ -77,7 +75,7 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
           _handleDeepLink(initialUri, deepLinkProvider);
         }
       } catch (e) {
-        debugPrint('❌ 초기 딥링크 실패: $e');
+        debugPrint('초기 딥링크 실패: $e');
       }
 
       _linkSubscription = _appLinks.uriLinkStream.listen(
@@ -87,7 +85,7 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
           }
         },
         onError: (err) {
-          debugPrint('❌ 딥링크 에러: $err');
+          debugPrint('딥링크 에러: $err');
         },
       );
     });
@@ -117,7 +115,7 @@ class _NotionCloneAppState extends State<NotionCloneApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      // ★ 무조건 홈 화면으로 시작
+      // 무조건 홈 화면으로 시작
       home: const NotionHomeScreen(),
     );
   }

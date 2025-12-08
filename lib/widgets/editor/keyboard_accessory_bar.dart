@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 class KeyboardAccessoryBar extends StatelessWidget {
   final VoidCallback onPlusPressed;
   final VoidCallback onImagePressed;
-  final VoidCallback onUndoPressed;         // 추가
-  final VoidCallback onDeletePressed;       // 추가
-  final VoidCallback onColorPressed;        // 추가
-  final bool canUndo;                       // 추가
+  final VoidCallback onUndoPressed;        
+  final VoidCallback onDeletePressed;      
+  final VoidCallback onColorPressed;       
+  final bool canUndo;                       
 
   const KeyboardAccessoryBar({
     required this.onPlusPressed,

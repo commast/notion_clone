@@ -34,7 +34,7 @@ class _TrashScreenState extends State<TrashScreen> {
         _isLoading = false;
       });
 
-      debugPrint('✅ 휴지통 로드: ${pages.length}개');
+      debugPrint('휴지통 로드: ${pages.length}개');
       for (var page in pages) {
         debugPrint('  - ${page.title} (parentId: ${page.parentId})');
       }
@@ -55,7 +55,7 @@ class _TrashScreenState extends State<TrashScreen> {
     try {
       final repository = Provider.of<PageRepository>(context, listen: false);
       
-      debugPrint('🔄 복원 시작: ${page.title} (id: ${page.id}, parentId: ${page.parentId})');
+      debugPrint('복원 시작: ${page.title} (id: ${page.id}, parentId: ${page.parentId})');
       
       await repository.restoreFromTrash(page.id);
 
@@ -65,7 +65,7 @@ class _TrashScreenState extends State<TrashScreen> {
         SnackBar(content: Text('${page.title} 복원 완료')),
       );
 
-      // ✅ 휴지통 새로고침 (팝하지 않음)
+      // 휴지통 새로고침
       await _loadTrash();
     } catch (e) {
       if (!mounted) return;

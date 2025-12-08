@@ -1,9 +1,4 @@
-// lib/services/api_service.dart
-
 abstract class ApiService {
-  // ==========================================
-  // 페이지 및 블록 관리: userId 추가됨
-  // ==========================================
   
   /// 모든 페이지 목록 가져오기
   Future<List<Map<String, dynamic>>> fetchPages(String userId); 
@@ -30,18 +25,14 @@ abstract class ApiService {
   Future<void> toggleFavorite(String pageId, bool isFavorite, String userId); 
 
 
-  // ==========================================
   // 휴지통 관련 메서드: userId 추가됨
-  // ==========================================
   Future<void> moveToTrash(String pageId, String userId);
   Future<List<Map<String, dynamic>>> fetchTrash(String userId);
   Future<void> restoreFromTrash(String pageId, String userId);
   Future<void> permanentlyDelete(String pageId, String userId);
   Future<void> emptyTrash(String userId);
-  
-  // ==========================================
-  // 기타 기능 (기존 유지)
-  // ==========================================
+
+  // 기타 기능 
   Future<String> uploadImage(String localFilePath);
   Future<Map<String, dynamic>> register(String email, String password);
   Future<Map<String, dynamic>> login(String email, String password);

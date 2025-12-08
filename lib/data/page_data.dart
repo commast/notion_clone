@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 class BlockData {
   String type;
   dynamic content;
-  Color? textColor;        // 추가
-  Color? backgroundColor;  // 추가
+  Color? textColor;       
+  Color? backgroundColor;  
   String? targetPageId;
 
   BlockData({
@@ -49,7 +49,7 @@ class PageData {
     this.parentPage,
   }) : subPages = subPages ?? [];
 
-  // 복제를 위한 메서드
+  // 복제를 위한 함수
   PageData copyWith({
     String? id,
     String? title,
@@ -86,10 +86,10 @@ class PageData {
   }
 }
 
-// 전역 저장소 - 하나로 통일
+// 전역 저장소
 Map<String, List<BlockData>> _pageDataMap = {};
 
-// 모든 페이지의 목록 (목록 화면에서 표시)
+// 모든 페이지의 목록
 List<PageMetadata> allPages = [
   PageMetadata(id: 'personal_page', title: '개인 페이지'),
   PageMetadata(id: 'mobile_start_guide', title: '모바일에서 시작하기'),
@@ -107,7 +107,7 @@ List<BlockData> getPageBlocks(String pageId) {
   return _pageDataMap[pageId]!;
 }
 
-// 페이지 블록 저장 함수 (수정)
+// 페이지 블록 저장 함수
 void savePageBlocks(String pageId, List<BlockData> blocks) {
   _pageDataMap[pageId] = blocks;
   debugPrint('페이지 블록 저장: $pageId, ${blocks.length}개 블록');

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 enum FontFamily {
-  basic,   // 산세리프체 (Roboto)
-  serif,   // 세리프체 (Noto Serif)
-  mono,    // 모노스페이스 (Roboto Mono)
+  basic,   // 산세리프체 
+  serif,   // 세리프체
+  mono,    // 모노스페이스
 }
 
 class FontProvider with ChangeNotifier {
@@ -35,7 +35,7 @@ class FontProvider with ChangeNotifier {
   TextStyle getTextStyle(FontFamily font, {double? fontSize, FontWeight? fontWeight, Color? color}) {
     switch (font) {
       case FontFamily.basic:
-        // 산세리프 - Roboto (깔끔한 현대적 느낌)
+        // 산세리프
         return GoogleFonts.roboto(
           fontSize: fontSize,
           fontWeight: fontWeight,
@@ -43,7 +43,7 @@ class FontProvider with ChangeNotifier {
           letterSpacing: -0.3,
         );
       case FontFamily.serif:
-        // 세리프체 - Noto Serif (전통적인 명조체 느낌)
+        // 세리프체
         return GoogleFonts.notoSerif(
           fontSize: fontSize,
           fontWeight: fontWeight,
@@ -51,7 +51,7 @@ class FontProvider with ChangeNotifier {
           letterSpacing: 0.2,
         );
       case FontFamily.mono:
-        // 모노스페이스 - Roboto Mono (코딩용 고정폭)
+        // 모노스페이스
         return GoogleFonts.robotoMono(
           fontSize: fontSize,
           fontWeight: fontWeight,

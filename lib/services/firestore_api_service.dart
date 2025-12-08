@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 class FirestoreApiService implements ApiService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ==========================================
   // 페이지 및 블록 관리: userId 필터링 적용
-  // ==========================================
 
   @override
   Future<List<Map<String, dynamic>>> fetchPages(String userId) async {
@@ -33,7 +31,7 @@ class FirestoreApiService implements ApiService {
           .orderBy('lastEdited', descending: true)
           .get();
 
-      // 3) 팀 페이지 (내가 멤버인 teamSpace들)
+      // 3) 팀 페이지
       QuerySnapshot<Map<String, dynamic>>? teamSnap;
       if (teamSpaceIds.isNotEmpty) {
         teamSnap = await fs
@@ -127,7 +125,7 @@ class FirestoreApiService implements ApiService {
         'userId': userId,
       });
       
-      debugPrint('✅ [Firestore] 페이지 생성 완료: $pageId (parentId: ${pageData['parentId']})');
+      debugPrint('[Firestore] 페이지 생성 완료: $pageId (parentId: ${pageData['parentId']})');
       return pageId;
     } catch (e) {
       debugPrint('[Firestore] createPage 실패: $e');
@@ -144,7 +142,7 @@ class FirestoreApiService implements ApiService {
         'isFavorite': pageData['isFavorite'],
       };
       
-      // ✅ parentId가 제공된 경우에만 업데이트
+      // parentId가 제공된 경우에만 업데이트
       if (pageData.containsKey('parentId')) {
         updateData['parentId'] = pageData['parentId'] ?? '';
       }
@@ -171,7 +169,7 @@ class FirestoreApiService implements ApiService {
     required String ownerUid,
     required List<String> memberUids,
   }) async {
-    debugPrint('🔥 promotePageToTeam start: pageId=$pageId, owner=$ownerUid, members=$memberUids');
+    debugPrint('promotePageToTeam start: pageId=$pageId, owner=$ownerUid, members=$memberUids');
     final batch = _firestore.batch();
 
     final teamDoc = _firestore.collection('teamSpaces').doc();
@@ -204,7 +202,7 @@ class FirestoreApiService implements ApiService {
     });
 
     await batch.commit();
-    debugPrint('🔥 promotePageToTeam batch committed');
+    debugPrint('promotePageToTeam batch committed');
   }
 
 
@@ -279,9 +277,7 @@ class FirestoreApiService implements ApiService {
     }
   }
 
-  // ==========================================
-  // 휴지통 관련 메서드 (부모-자식 관계 유지)
-  // ==========================================
+  // 휴지통 관련 메서드
 
   @override
 Future<void> moveToTrash(String pageId, String userId) async {
@@ -294,31 +290,31 @@ Future<void> moveToTrash(String pageId, String userId) async {
     
     final pageData = pageDoc.data()!;
     
-    debugPrint('🗑️ [Firestore] 휴지통 이동 시작: $pageId (title: ${pageData['title']})');
+    debugPrint('[Firestore] 휴지통 이동 시작: $pageId (title: ${pageData['title']})');
     
-    // ✅ 1단계: 먼저 하위 페이지를 재귀적으로 휴지통 이동 (중요!)
+    // 1단계: 먼저 하위 페이지를 재귀적으로 휴지통 이동 
     final subPagesSnapshot = await _firestore
         .collection('pages')
         .where('parentId', isEqualTo: pageId)
         .where('userId', isEqualTo: userId)
         .get();
     
-    debugPrint('  📦 하위 페이지 ${subPagesSnapshot.docs.length}개 발견');
+    debugPrint('하위 페이지 ${subPagesSnapshot.docs.length}개 발견');
     
     for (var subPageDoc in subPagesSnapshot.docs) {
-      await moveToTrash(subPageDoc.id, userId);  // 재귀 호출
+      await moveToTrash(subPageDoc.id, userId); 
     }
     
-    // ✅ 2단계: 현재 페이지를 휴지통으로 복사
+    // 2단계: 현재 페이지를 휴지통으로 복사
     await _firestore.collection('trash').doc(pageId).set({
       ...pageData,
       'deletedAt': FieldValue.serverTimestamp(),
       'parentId': pageData['parentId'] ?? '',
     });
     
-    debugPrint('  ✅ 휴지통에 복사: $pageId');
+    debugPrint('휴지통에 복사: $pageId');
     
-    // ✅ 3단계: 블록 복사 및 삭제
+    // 3단계: 블록 복사 및 삭제
     final blocksSnapshot = await _firestore
         .collection('pages')
         .doc(pageId)
@@ -337,10 +333,10 @@ Future<void> moveToTrash(String pageId, String userId) async {
     
     await batch.commit();
     
-    // ✅ 4단계: 원본 페이지 삭제
+    // 4단계: 원본 페이지 삭제
     await _firestore.collection('pages').doc(pageId).delete();
     
-    debugPrint('  ✅ 원본 삭제 완료: $pageId');
+    debugPrint('원본 삭제 완료: $pageId');
     
   } catch (e) {
     debugPrint('[Firestore] moveToTrash 실패: $e');
@@ -358,9 +354,9 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
         .orderBy('deletedAt', descending: true)
         .get();
 
-    debugPrint('📖 휴지통 전체 조회: ${snapshot.docs.length}개');
+    debugPrint('휴지통 전체 조회: ${snapshot.docs.length}개');
     
-    // ✅ 최상위 부모만 필터링
+    // 최상위 부모만 필터링
     final allTrashIds = snapshot.docs.map((doc) => doc.id).toSet();
     final rootPages = <Map<String, dynamic>>[];
     
@@ -386,7 +382,7 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
       }
     }
     
-    debugPrint('✅ 휴지통 최상위 페이지: ${rootPages.length}개');
+    debugPrint('휴지통 최상위 페이지: ${rootPages.length}개');
     return rootPages;
   } catch (e) {
     debugPrint('[Firestore] fetchTrash 실패: $e');
@@ -407,13 +403,13 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
       final pageData = Map<String, dynamic>.from(trashDoc.data()!);
       pageData.remove('deletedAt');
       
-      // ✅ parentId 명시적 보존
+      // parentId 명시적 보존
       final parentId = pageData['parentId'] ?? '';
 
       // 복원
       await _firestore.collection('pages').doc(pageId).set({
         ...pageData,
-        'parentId': parentId,  // ✅ 부모 관계 유지
+        'parentId': parentId,  // 부모 관계 유지
       });
 
       // 블록 복원
@@ -433,7 +429,7 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
         batch.delete(blockDoc.reference);
       }
       
-      // ✅ 하위 페이지 재귀 복원
+      // 하위 페이지 재귀 복원
       final subPagesSnapshot = await _firestore
           .collection('trash')
           .where('parentId', isEqualTo: pageId)
@@ -449,7 +445,7 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
       // 휴지통 문서 삭제
       await _firestore.collection('trash').doc(pageId).delete();
 
-      debugPrint('✅ [Firestore] 복원 완료: $pageId (parentId: $parentId, 하위 페이지 포함)');
+      debugPrint('[Firestore] 복원 완료: $pageId (parentId: $parentId, 하위 페이지 포함)');
     } catch (e) {
       debugPrint('[Firestore] restoreFromTrash 실패: $e');
       rethrow;

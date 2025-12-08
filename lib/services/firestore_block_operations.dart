@@ -1,11 +1,10 @@
-// lib/services/firestore_block_operations.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class FirestoreBlockOperations {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// 1. 특정 페이지의 모든 블록 조회 (READ)
+  /// 1. 특정 페이지의 모든 블록 조회
   Future<List<Map<String, dynamic>>> getBlocks(String pageId) async {
     try {
       final snapshot = await _firestore
@@ -15,7 +14,7 @@ class FirestoreBlockOperations {
           .orderBy('order')
           .get();
 
-      debugPrint('📖 블록 조회: ${snapshot.docs.length}개 (페이지: $pageId)');
+      debugPrint('블록 조회: ${snapshot.docs.length}개 (페이지: $pageId)');
       
       return snapshot.docs.map((doc) {
         return {
@@ -24,12 +23,12 @@ class FirestoreBlockOperations {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ getBlocks 실패: $e');
+      debugPrint('getBlocks 실패: $e');
       return [];
     }
   }
 
-  /// 2. 블록 추가 (CREATE)
+  /// 2. 블록 추가
   Future<String> addBlock({
     required String pageId,
     required String type,
@@ -55,15 +54,15 @@ class FirestoreBlockOperations {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('✅ 블록 추가 완료: ${docRef.id} (타입: $type)');
+      debugPrint('블록 추가 완료: ${docRef.id} (타입: $type)');
       return docRef.id;
     } catch (e) {
-      debugPrint('❌ addBlock 실패: $e');
+      debugPrint('addBlock 실패: $e');
       rethrow;
     }
   }
 
-  /// 3. 블록 내용 수정 (UPDATE)
+  /// 3. 블록 내용 수정
   Future<void> updateBlockContent({
     required String pageId,
     required String blockId,
@@ -80,14 +79,14 @@ class FirestoreBlockOperations {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('✅ 블록 수정 완료: $blockId');
+      debugPrint('블록 수정 완료: $blockId');
     } catch (e) {
-      debugPrint('❌ updateBlockContent 실패: $e');
+      debugPrint('updateBlockContent 실패: $e');
       rethrow;
     }
   }
 
-  /// 4. 블록 삭제 (DELETE)
+  /// 4. 블록 삭제
   Future<void> deleteBlock(String pageId, String blockId) async {
     try {
       await _firestore
@@ -97,14 +96,14 @@ class FirestoreBlockOperations {
           .doc(blockId)
           .delete();
 
-      debugPrint('✅ 블록 삭제 완료: $blockId');
+      debugPrint('블록 삭제 완료: $blockId');
     } catch (e) {
-      debugPrint('❌ deleteBlock 실패: $e');
+      debugPrint('deleteBlock 실패: $e');
       rethrow;
     }
   }
 
-  /// 5. 모든 블록 일괄 저장 (BATCH WRITE)
+  /// 5. 모든 블록 일괄 저장 
   Future<void> saveAllBlocks({
     required String pageId,
     required List<Map<String, dynamic>> blocks,
@@ -133,14 +132,14 @@ class FirestoreBlockOperations {
       }
 
       await batch.commit();
-      debugPrint('✅ 블록 일괄 저장 완료: ${blocks.length}개');
+      debugPrint('블록 일괄 저장 완료: ${blocks.length}개');
     } catch (e) {
-      debugPrint('❌ saveAllBlocks 실패: $e');
+      debugPrint('saveAllBlocks 실패: $e');
       rethrow;
     }
   }
 
-  /// 6. 특정 타입의 블록만 조회 (QUERY)
+  /// 6. 특정 타입의 블록만 조회
   Future<List<Map<String, dynamic>>> getBlocksByType({
     required String pageId,
     required String blockType,
@@ -154,7 +153,7 @@ class FirestoreBlockOperations {
           .orderBy('order')
           .get();
 
-      debugPrint('📖 블록 타입별 조회: ${snapshot.docs.length}개 (타입: $blockType)');
+      debugPrint('블록 타입별 조회: ${snapshot.docs.length}개 (타입: $blockType)');
       
       return snapshot.docs.map((doc) {
         return {
@@ -163,12 +162,12 @@ class FirestoreBlockOperations {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ getBlocksByType 실패: $e');
+      debugPrint('getBlocksByType 실패: $e');
       return [];
     }
   }
 
-  /// 7. 블록 개수 조회 (AGGREGATE)
+  /// 7. 블록 개수 조회
   Future<int> getBlockCount(String pageId) async {
     try {
       final snapshot = await _firestore
@@ -179,10 +178,10 @@ class FirestoreBlockOperations {
           .get();
       
       final count = snapshot.count ?? 0;
-      debugPrint('📊 블록 개수: $count개 (페이지: $pageId)');
+      debugPrint('블록 개수: $count개 (페이지: $pageId)');
       return count;
     } catch (e) {
-      debugPrint('❌ getBlockCount 실패: $e');
+      debugPrint('getBlockCount 실패: $e');
       return 0;
     }
   }

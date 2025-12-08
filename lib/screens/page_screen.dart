@@ -169,7 +169,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   Future<void> _savePageData() async {
     // _repository가 없으면 저장 안 함
     if (_repository == null) {
-      debugPrint('⚠️ Repository가 없어 저장 건너뜀');
+      debugPrint('Repository가 없어 저장 건너뜀');
       return;
     }
     
@@ -240,7 +240,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
       _saveState();
       setState(() {
-        // 원하는 타입으로 저장 (예: file 블록)
+        // 원하는 타입으로 저장
         _currentBlocks.add(
           BlockData(
             type: 'file',
@@ -433,7 +433,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 }
 
 
-  void _addBlock(String blockType) async {  // ✅ async 추가
+  void _addBlock(String blockType) async { 
   _saveState();
   
   switch (blockType) {
@@ -514,7 +514,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         lastEdited: DateTime.now(),
       );
       
-      // ✅ async 작업
       final repository = Provider.of<PageRepository>(context, listen: false);
       
       try {
@@ -528,7 +527,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         await repository.saveBlocks(newPageId, defaultBlocks);
         savePageBlocks(newPageId, defaultBlocks);
         
-        debugPrint('✅ 하위 페이지 생성 완료: $newPageId');
+        debugPrint('하위 페이지 생성 완료: $newPageId');
         
         if (widget.onPageCreated != null) {
           widget.onPageCreated!(newPage);
@@ -541,7 +540,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           ));
         });
       } catch (e) {
-        debugPrint('❌ 하위 페이지 생성 실패: $e');
+        debugPrint('하위 페이지 생성 실패: $e');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -702,7 +701,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final repo = Provider.of<PageRepository>(context, listen: false);
     final firestore = FirebaseFirestore.instance;
 
-    // 🔹 항상 최신 페이지 문서를 Firestore에서 읽어서 teamSpaceId 가져오기
+    // 항상 최신 페이지 문서를 Firestore에서 읽어서 teamSpaceId 가져오기
     final pageSnap =
         await firestore.collection('pages').doc(widget.page.id).get();
     final data = pageSnap.data();
@@ -720,7 +719,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (teamSpaceId != null)
-                    SizedBox(               // 🔹 ListView에 높이 고정
+                    SizedBox(               
                       height: 120,
                       child: StreamBuilder<QuerySnapshot>(
                         stream: firestore
@@ -758,8 +757,8 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                                   return ListTile(
                                     dense: true,
                                     leading: const Icon(Icons.person, size: 20),
-                                    title: Text(emailText),   // 🔹 이메일 표시
-                                    subtitle: Text(role),     // owner / editor
+                                    title: Text(emailText),   
+                                    subtitle: Text(role),     
                                   );
                                 },
                               );
@@ -786,7 +785,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             TextButton(
               onPressed: () async {
                 final email = controller.text.trim();
-                debugPrint('🔹 invite pressed: $email');
+                debugPrint('invite pressed: $email');
                 if (email.isEmpty) return;
 
                 try {
@@ -795,7 +794,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                       .where('email', isEqualTo: email)
                       .limit(1)
                       .get();
-                  debugPrint('🔹 users query docs: ${snap.docs.length}');
+                  debugPrint('users query docs: ${snap.docs.length}');
 
                   if (snap.docs.isEmpty) {
                     if (mounted) {
@@ -808,19 +807,19 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   }
 
                   final invitedUid = snap.docs.first.id;
-                  debugPrint('🔹 invitedUid: $invitedUid');
+                  debugPrint('invitedUid: $invitedUid');
 
                   if (teamSpaceId == null) {
-                    // 첫 초대 → 팀 생성 + 초대
+                    // 첫 초대 -> 팀 생성 + 초대
                     await repo.promotePageToTeam(
                       pageId: widget.page.id,
                       memberUids: [invitedUid],
                     );
-                    debugPrint('🔹 promotePageToTeam done (first invite)');
+                    debugPrint('promotePageToTeam done (first invite)');
                   } else {
                     // 이미 팀이면 나중에: teamMembers에만 추가하는 로직 만들 수 있음
                     debugPrint(
-                        '🔹 already team space: $teamSpaceId (추가 초대 로직 TODO)');
+                        'already team space: $teamSpaceId (추가 초대 로직 TODO)');
                   }
 
                   if (mounted) {
@@ -834,7 +833,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     );
                   }
                 } catch (e) {
-                  debugPrint('🔸 invite error: $e');
+                  debugPrint('invite error: $e');
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('초대 실패: $e')),
@@ -907,7 +906,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final previousPage = _previousPage;
     final nextPage = _nextPage;
     final hasNavigation = previousPage != null || nextPage != null;
-    final bool isTeamPage = widget.page.teamSpaceId != null;
 
       // 로딩 중일 때 로딩 화면 표시
     if (_isLoading) {
@@ -950,7 +948,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.group_add),
-            onPressed: _showMembersDialog,   // 이 함수는 곧 만들 것
+            onPressed: _showMembersDialog, 
           ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
@@ -1034,7 +1032,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                       style: const TextStyle(fontSize: 14),
                     ),
                     onTap: () {
-                      // TODO: 필요하다면 파일 열기/공유 기능 구현
                     },
                   );
                   break;
@@ -1391,7 +1388,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     initialData: data,
                     onChanged: (serializedData) {
                       setState(() {
-                        block.content = serializedData; //Color 없는 JSON으로만 저장
+                        block.content = serializedData; // Color 없는 JSON으로만 저장
                       });
                     },
                   );
@@ -1411,7 +1408,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     data: tableData,
                     onChanged: (newData) {
                       setState(() {
-                        block.content = newData; // rows, cols, cells(Map) 저장
+                        block.content = newData; // rows, cols, cells 저장
                       });
                     },
                   );
@@ -1462,7 +1459,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             },
           ),
 
-          // 페이지 네비게이션 버튼 (하단 우측)
+          // 페이지 네비게이션 버튼
           if (hasNavigation && !isKeyboardVisible)
             Positioned(
               right: 16,
@@ -1600,7 +1597,7 @@ class _NavigationButton extends StatelessWidget {
   }
 }
 
-// 나머지 Dialog 클래스들 (이전과 동일)
+// 나머지 Dialog 클래스들
 class _PageNavigationDialog extends StatefulWidget {
   final List<PageData> allPages;
   final PageData currentPage;

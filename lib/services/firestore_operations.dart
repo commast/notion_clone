@@ -1,11 +1,10 @@
-// lib/services/firestore_operations.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class FirestoreOperations {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// 1. 모든 페이지 조회 (READ)
+  /// 1. 모든 페이지 조회
   Future<List<Map<String, dynamic>>> getAllPages() async {
     try {
       final snapshot = await _firestore
@@ -13,7 +12,7 @@ class FirestoreOperations {
           .orderBy('lastEdited', descending: true)
           .get();
 
-      debugPrint('📖 전체 페이지 조회: ${snapshot.docs.length}개');
+      debugPrint('전체 페이지 조회: ${snapshot.docs.length}개');
       
       return snapshot.docs.map((doc) {
         return {
@@ -22,12 +21,12 @@ class FirestoreOperations {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ getAllPages 실패: $e');
+      debugPrint('getAllPages 실패: $e');
       rethrow;
     }
   }
 
-  /// 2. 특정 페이지 조회 (READ)
+  /// 2. 특정 페이지 조회 
   Future<Map<String, dynamic>> getPageById(String pageId) async {
     try {
       final doc = await _firestore
@@ -39,18 +38,18 @@ class FirestoreOperations {
         throw Exception('페이지를 찾을 수 없습니다: $pageId');
       }
 
-      debugPrint('📖 페이지 조회 성공: $pageId');
+      debugPrint('페이지 조회 성공: $pageId');
       return {
         'id': doc.id,
         ...doc.data()!,
       };
     } catch (e) {
-      debugPrint('❌ getPageById 실패: $e');
+      debugPrint('getPageById 실패: $e');
       rethrow;
     }
   }
 
-  /// 3. 새 페이지 생성 (CREATE)
+  /// 3. 새 페이지 생성
   Future<String> createPage({
     required String title,
     bool isFavorite = false,
@@ -63,15 +62,15 @@ class FirestoreOperations {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('✅ 페이지 생성 완료: ${docRef.id}');
+      debugPrint('페이지 생성 완료: ${docRef.id}');
       return docRef.id;
     } catch (e) {
-      debugPrint('❌ createPage 실패: $e');
+      debugPrint('createPage 실패: $e');
       rethrow;
     }
   }
 
-  /// 4. 페이지 제목 수정 (UPDATE)
+  /// 4. 페이지 제목 수정
   Future<void> updatePageTitle(String pageId, String newTitle) async {
     try {
       await _firestore.collection('pages').doc(pageId).update({
@@ -79,14 +78,14 @@ class FirestoreOperations {
         'lastEdited': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('✅ 페이지 제목 수정 완료: $pageId');
+      debugPrint('페이지 제목 수정 완료: $pageId');
     } catch (e) {
-      debugPrint('❌ updatePageTitle 실패: $e');
+      debugPrint('updatePageTitle 실패: $e');
       rethrow;
     }
   }
 
-  /// 5. 즐겨찾기 토글 (UPDATE)
+  /// 5. 즐겨찾기 토글
   Future<void> toggleFavorite(String pageId, bool isFavorite) async {
     try {
       await _firestore.collection('pages').doc(pageId).update({
@@ -94,14 +93,14 @@ class FirestoreOperations {
         'lastEdited': FieldValue.serverTimestamp(),
       });
 
-      debugPrint('✅ 즐겨찾기 토글 완료: $pageId → $isFavorite');
+      debugPrint('즐겨찾기 토글 완료: $pageId → $isFavorite');
     } catch (e) {
-      debugPrint('❌ toggleFavorite 실패: $e');
+      debugPrint('toggleFavorite 실패: $e');
       rethrow;
     }
   }
 
-  /// 6. 페이지 삭제 (DELETE)
+  /// 6. 페이지 삭제
   Future<void> deletePage(String pageId) async {
     try {
       // 하위 블록도 함께 삭제
@@ -122,14 +121,14 @@ class FirestoreOperations {
       batch.delete(_firestore.collection('pages').doc(pageId));
 
       await batch.commit();
-      debugPrint('✅ 페이지 삭제 완료: $pageId (블록 ${blocksSnapshot.docs.length}개 포함)');
+      debugPrint('페이지 삭제 완료: $pageId (블록 ${blocksSnapshot.docs.length}개 포함)');
     } catch (e) {
-      debugPrint('❌ deletePage 실패: $e');
+      debugPrint('deletePage 실패: $e');
       rethrow;
     }
   }
 
-  /// 7. 즐겨찾기 페이지만 조회 (QUERY)
+  /// 7. 즐겨찾기 페이지만 조회
   Future<List<Map<String, dynamic>>> getFavoritePages() async {
     try {
       final snapshot = await _firestore
@@ -138,7 +137,7 @@ class FirestoreOperations {
           .orderBy('lastEdited', descending: true)
           .get();
 
-      debugPrint('⭐ 즐겨찾기 페이지 조회: ${snapshot.docs.length}개');
+      debugPrint('즐겨찾기 페이지 조회: ${snapshot.docs.length}개');
       
       return snapshot.docs.map((doc) {
         return {
@@ -147,12 +146,12 @@ class FirestoreOperations {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ getFavoritePages 실패: $e');
+      debugPrint('getFavoritePages 실패: $e');
       rethrow;
     }
   }
 
-  /// 8. 제목으로 페이지 검색 (QUERY)
+  /// 8. 제목으로 페이지 검색
   Future<List<Map<String, dynamic>>> searchPagesByTitle(String keyword) async {
     try {
       final snapshot = await _firestore
@@ -162,7 +161,7 @@ class FirestoreOperations {
           .endAt(['$keyword\uf8ff'])
           .get();
 
-      debugPrint('🔍 페이지 검색 결과: ${snapshot.docs.length}개 (키워드: $keyword)');
+      debugPrint('페이지 검색 결과: ${snapshot.docs.length}개 (키워드: $keyword)');
       
       return snapshot.docs.map((doc) {
         return {
@@ -171,12 +170,12 @@ class FirestoreOperations {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ searchPagesByTitle 실패: $e');
+      debugPrint('searchPagesByTitle 실패: $e');
       rethrow;
     }
   }
 
-  /// 9. 최근 수정된 페이지 조회 (QUERY)
+  /// 9. 최근 수정된 페이지 조회
   Future<List<Map<String, dynamic>>> getRecentPages({int limit = 5}) async {
     try {
       final snapshot = await _firestore
@@ -185,7 +184,7 @@ class FirestoreOperations {
           .limit(limit)
           .get();
 
-      debugPrint('🕒 최근 페이지 조회: ${snapshot.docs.length}개');
+      debugPrint('최근 페이지 조회: ${snapshot.docs.length}개');
       
       return snapshot.docs.map((doc) {
         return {
@@ -194,21 +193,21 @@ class FirestoreOperations {
         };
       }).toList();
     } catch (e) {
-      debugPrint('❌ getRecentPages 실패: $e');
+      debugPrint('getRecentPages 실패: $e');
       rethrow;
     }
   }
 
-  /// 10. 페이지 개수 조회 (AGGREGATE)
+  /// 10. 페이지 개수 조회
   Future<int> getTotalPageCount() async {
     try {
       final snapshot = await _firestore.collection('pages').count().get();
       final count = snapshot.count ?? 0;
       
-      debugPrint('📊 전체 페이지 개수: $count개');
+      debugPrint('전체 페이지 개수: $count개');
       return count;
     } catch (e) {
-      debugPrint('❌ getTotalPageCount 실패: $e');
+      debugPrint('getTotalPageCount 실패: $e');
       rethrow;
     }
   }

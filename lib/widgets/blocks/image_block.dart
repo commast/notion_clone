@@ -15,7 +15,7 @@ class ImageBlock extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 300), 
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8.0),
-        // 이미지 외곽선 (선택 사항)
+        // 이미지 외곽선
         border: Border.all(color: Colors.black12),
       ),
       child: ClipRRect(

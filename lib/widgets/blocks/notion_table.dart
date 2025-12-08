@@ -91,10 +91,9 @@ class _TableSizeSelectorModalState extends State<TableSizeSelectorModal> {
   }
 }
 
-// ---------------- NotionTable ----------------
 
 class NotionTable extends StatefulWidget {
-  final Map<String, dynamic> data; // rows, cols, cells(Map<String,String>)
+  final Map<String, dynamic> data; // 행, 열 , 셀(Map<String,String>)
   final ValueChanged<Map<String, dynamic>> onChanged;
 
   const NotionTable({
@@ -198,7 +197,7 @@ class _NotionTableState extends State<NotionTable> {
                           isHeader ? FontWeight.bold : FontWeight.normal,
                     ),
                     maxLines: null,
-                    onChanged: (_) => _notifyParent(), // 저장
+                    onChanged: (_) => _notifyParent(), 
                   ),
                 ),
               );

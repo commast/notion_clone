@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 클립보드용
+import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
-import 'package:flutter_highlight/themes/monokai-sublime.dart'; // 테마
+import 'package:flutter_highlight/themes/monokai-sublime.dart'; 
 import 'package:highlight/languages/dart.dart';
 import 'package:highlight/languages/python.dart';
 import 'package:highlight/languages/javascript.dart';
 import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/cpp.dart';
-// 필요한 언어를 여기서 추가 import 하세요.
 
 class CodeBlock extends StatefulWidget {
   final String initialCode;
@@ -43,7 +42,7 @@ class _CodeBlockState extends State<CodeBlock> {
     _codeController = CodeController(
       text: widget.initialCode.isNotEmpty
           ? widget.initialCode
-          : "void main() {\n  print('Hello Notion!');\n}",   // 기본 코드
+          : "void main() {\n  print('Hello Notion!');\n}",  
       language: dart,
     );
 
@@ -83,7 +82,7 @@ class _CodeBlockState extends State<CodeBlock> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF23241f), // Monokai 배경색과 맞춤
+        color: const Color(0xFF23241f), 
         borderRadius: BorderRadius.circular(8),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
@@ -95,7 +94,7 @@ class _CodeBlockState extends State<CodeBlock> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: const BoxDecoration(
-              color: Colors.white10, // 헤더는 살짝 밝게
+              color: Colors.white10, 
               borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
             ),
             child: Row(

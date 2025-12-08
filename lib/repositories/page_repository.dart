@@ -16,13 +16,10 @@ class PageRepository {
   /// 모든 페이지 가져오기
   Future<List<PageData>> getAllPages() async {
     final currentUserId = _userId; 
-
-    // ⭐️ [수정됨] 차단 코드 삭제함
-    // 이제 로그아웃 상태(currentUserId == '')여도 아래 코드가 실행됩니다.
     
     try {
-      // 로그아웃 상태면 userId가 ''인 데이터(게스트 데이터)를 가져옵니다.
-      // 로그인 상태면 userId가 '내UID'인 데이터를 가져옵니다.
+      // 로그아웃 상태면 userId가 ''인 데이터(게스트 데이터)를 가져옴
+      // 로그인 상태면 userId가 '내UID'인 데이터를 가져옴
       final pagesJson = await _apiService.fetchPages(currentUserId);
       
       return pagesJson.map((json) {
@@ -36,7 +33,7 @@ class PageRepository {
         );
       }).toList();
     } catch (e) {
-      debugPrint('❌ [Repository] getAllPages 실패: $e');
+      debugPrint('[Repository] getAllPages 실패: $e');
       rethrow;
     }
   }
@@ -53,7 +50,7 @@ class PageRepository {
         teamSpaceId: pageJson['teamSpaceId'] as String?,
       );
     } catch (e) {
-      debugPrint('❌ [Repository] getPage 실패: $e');
+      debugPrint('[Repository] getPage 실패: $e');
       rethrow;
     }
   }
@@ -73,7 +70,7 @@ class PageRepository {
       
       return pageId;
     } catch (e) {
-      debugPrint('❌ [Repository] createPage 실패: $e');
+      debugPrint('[Repository] createPage 실패: $e');
       rethrow;
     }
   }
@@ -88,7 +85,7 @@ class PageRepository {
          'parentId': page.parentId, 
       }, _userId);
     } catch (e) {
-      debugPrint('❌ [Repository] updatePage 실패: $e');
+      debugPrint('[Repository] updatePage 실패: $e');
       rethrow;
     }
   }
@@ -98,7 +95,7 @@ class PageRepository {
     try {
       await _apiService.deletePage(pageId, _userId);
     } catch (e) {
-      debugPrint('❌ [Repository] deletePage 실패: $e');
+      debugPrint('[Repository] deletePage 실패: $e');
       rethrow;
     }
   }
@@ -143,7 +140,7 @@ class PageRepository {
       
       await _apiService.saveBlocks(pageId, blocksJson, _userId);
     } catch (e) {
-      debugPrint('❌ [Repository] saveBlocks 실패: $e');
+      debugPrint('[Repository] saveBlocks 실패: $e');
       rethrow;
     }
   }
@@ -153,7 +150,7 @@ class PageRepository {
     try {
       await _apiService.toggleFavorite(pageId, isFavorite, _userId);
     } catch (e) {
-      debugPrint('❌ [Repository] toggleFavorite 실패: $e');
+      debugPrint('[Repository] toggleFavorite 실패: $e');
       rethrow;
     }
   }
@@ -163,7 +160,7 @@ class PageRepository {
     try {
       await _apiService.moveToTrash(pageId, _userId);
     } catch (e) {
-      debugPrint('❌ [Repository] moveToTrash 실패: $e');
+      debugPrint('[Repository] moveToTrash 실패: $e');
       rethrow;
     }
   }
@@ -181,7 +178,7 @@ class PageRepository {
         );
       }).toList();
     } catch (e) {
-      debugPrint('❌ [Repository] getTrash 실패: $e');
+      debugPrint('[Repository] getTrash 실패: $e');
       return [];
     }
   }
@@ -201,7 +198,7 @@ class PageRepository {
     try {
       await _apiService.permanentlyDelete(pageId, _userId);
     } catch (e) {
-      debugPrint('❌ [Repository] permanentlyDelete 실패: $e');
+      debugPrint('[Repository] permanentlyDelete 실패: $e');
       rethrow;
     }
   }
@@ -211,7 +208,7 @@ class PageRepository {
     try {
       await _apiService.emptyTrash(_userId);
     } catch (e) {
-      debugPrint('❌ [Repository] emptyTrash 실패: $e');
+      debugPrint('[Repository] emptyTrash 실패: $e');
       rethrow;
     }
   }
@@ -219,12 +216,12 @@ class PageRepository {
   // 이미지 업로드
   Future<String> uploadImage(String localFilePath) async {
     try {
-      debugPrint('📡 [Repository] uploadImage 요청: $localFilePath');
+      debugPrint('[Repository] uploadImage 요청: $localFilePath');
       final imageUrl = await _apiService.uploadImage(localFilePath);
-      debugPrint('✅ [Repository] 이미지 업로드 성공: $imageUrl');
+      debugPrint('[Repository] 이미지 업로드 성공: $imageUrl');
       return imageUrl;
     } catch (e) {
-      debugPrint('❌ [Repository] uploadImage 실패: $e');
+      debugPrint('[Repository] uploadImage 실패: $e');
       rethrow;
     }
   }

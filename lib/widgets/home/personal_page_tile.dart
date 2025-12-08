@@ -8,7 +8,7 @@ class PersonalPageTile extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onAddSubPage;
   final VoidCallback? onToggleExpand;
-  final VoidCallback? onMove; // 추가
+  final VoidCallback? onMove;
   final bool isFavorite;
   final bool isExpanded;
   final bool hasSubPages;
@@ -23,7 +23,7 @@ class PersonalPageTile extends StatelessWidget {
     this.onDelete,
     this.onAddSubPage,
     this.onToggleExpand,
-    this.onMove, // 추가
+    this.onMove, 
     this.isFavorite = false,
     this.isExpanded = false,
     this.hasSubPages = false,
@@ -76,7 +76,7 @@ class PersonalPageTile extends StatelessWidget {
                 case 'favorite':
                   onFavorite?.call();
                   break;
-                case 'move': // 추가
+                case 'move': 
                   onMove?.call();
                   break;
                 case 'duplicate':

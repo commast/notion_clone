@@ -1,4 +1,3 @@
-// lib/screens/email_verification_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
@@ -51,7 +50,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         // 인증 완료 메시지 표시
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ 이메일 인증이 완료되었습니다!'),
+            content: Text('이메일 인증이 완료되었습니다!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),

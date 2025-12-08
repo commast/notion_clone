@@ -13,7 +13,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   
   void _showDeleteAccountDialog() {
-    // 🔹 SettingsScreen 의 context 를 로컬 변수로 캡처
+    // SettingsScreen 의 context 를 로컬 변수로 캡처
     final parentContext = context;
 
     showDialog(
@@ -34,10 +34,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final authService = Provider.of<AuthService>(parentContext, listen: false);
                 final success = await authService.deleteAccount();
 
-                // 🔹 SettingsScreen 이 살아있는지 확인
+                // SettingsScreen이 살아있는지 확인
                 if (!mounted) return;
 
-                // 🔹 SnackBar 는 SettingsScreen 의 context 로
+                // SnackBar는 SettingsScreen의 context로
                 ScaffoldMessenger.of(parentContext).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -49,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
 
-                // 🔹 성공/실패 상관없이 SettingsScreen 닫고 싶으면:
+                // 성공/실패 상관없이 SettingsScreen 닫고 싶으면:
                 Navigator.pop(parentContext);
 
                 // 만약 성공일 때만 닫고 싶으면 위 줄 대신:
@@ -178,7 +178,7 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   
-  // ✅ 로딩 상태 추가
+  // 로딩 상태 추가
   bool _isLoading = false;
 
   @override
@@ -189,11 +189,11 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
     super.dispose();
   }
 
-  // ✅ 비밀번호 변경 로직 수정
+  // 비밀번호 변경 로직 수정
   Future<void> _changePassword() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoading = true; // 로딩 시작
+        _isLoading = true;
       });
 
       // AuthService 호출
@@ -214,16 +214,16 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
         Navigator.pop(context); // 다이얼로그 닫기
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ 비밀번호가 성공적으로 변경되었습니다.'),
+            content: Text('비밀번호가 성공적으로 변경되었습니다.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
         );
       } else {
-        // 실패 시 (주로 현재 비밀번호가 틀렸을 때)
+        // 실패 시 (현재 비밀번호가 틀렸을 때)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('❌ 비밀번호 변경 실패. 현재 비밀번호를 확인해주세요.'),
+            content: Text('비밀번호 변경 실패. 현재 비밀번호를 확인해주세요.'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
@@ -242,7 +242,6 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ... (TextFormField 들은 기존 코드 그대로 유지) ...
               
               // 현재 비밀번호
               TextFormField(
