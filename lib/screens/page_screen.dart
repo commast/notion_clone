@@ -32,7 +32,6 @@ import '../widgets/blocks/quote_block.dart';
 import '../widgets/blocks/divider_block.dart';
 import '../widgets/blocks/page_link_block.dart';
 
-
 class NotionPageScreen extends StatefulWidget {
   final PageData page;
   final VoidCallback? onNewPage;
@@ -65,13 +64,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   late List<BlockData> _currentBlocks;
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
-  
+
   final List<List<BlockData>> _undoStack = [];
   int _currentFocusedBlockIndex = -1;
 
-   bool _isLoading = true; 
+  bool _isLoading = true;
 
-   PageRepository? _repository;
+  PageRepository? _repository;
 
   bool get canUndo => _undoStack.isNotEmpty;
 
@@ -112,14 +111,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     );
   }
 
-  
   @override
   void initState() {
     super.initState();
     _loadPageData();
   }
 
-   @override
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     //repository를 미리 저장
@@ -137,12 +135,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // _repository 사용
-      final repository = _repository ?? Provider.of<PageRepository>(context, listen: false);
+      final repository =
+          _repository ?? Provider.of<PageRepository>(context, listen: false);
       final blocks = await repository.getBlocks(widget.page.id);
-      
+
       if (blocks.isNotEmpty) {
         setState(() {
           _currentBlocks = blocks;
@@ -165,40 +164,36 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     }
   }
 
-
   Future<void> _savePageData() async {
     // _repository가 없으면 저장 안 함
     if (_repository == null) {
       debugPrint('Repository가 없어 저장 건너뜀');
       return;
     }
-    
+
     try {
       // 페이지 제목 저장
       await _repository!.updatePage(widget.page);
-      
+
       // 블록 내용 저장
       await _repository!.saveBlocks(widget.page.id, _currentBlocks);
-      
+
       // 로컬 메모리에도 저장
       savePageBlocks(widget.page.id, _currentBlocks);
-      
+
       debugPrint('페이지 데이터 저장 완료: ${widget.page.title}');
     } catch (e) {
       debugPrint('페이지 데이터 저장 실패: $e');
     }
   }
 
-
-
-
   // 같은 부모를 가진 형제 페이지들 가져오기
   List<PageData> get _siblingPages {
     if (widget.allPages == null) return [];
-    
-    return widget.allPages!.where((p) => 
-      p.parentId == widget.page.parentId
-    ).toList()
+
+    return widget.allPages!
+        .where((p) => p.parentId == widget.page.parentId)
+        .toList()
       ..sort((a, b) => a.lastEdited.compareTo(b.lastEdited));
   }
 
@@ -206,7 +201,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   PageData? get _previousPage {
     final siblings = _siblingPages;
     if (siblings.isEmpty) return null;
-    
+
     final currentIndex = siblings.indexWhere((p) => p.id == widget.page.id);
     if (currentIndex > 0) {
       return siblings[currentIndex - 1];
@@ -218,7 +213,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   PageData? get _nextPage {
     final siblings = _siblingPages;
     if (siblings.isEmpty) return null;
-    
+
     final currentIndex = siblings.indexWhere((p) => p.id == widget.page.id);
     if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
       return siblings[currentIndex + 1];
@@ -227,46 +222,45 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   Future<void> _pickFile() async {
-  try {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: false,
-      withData: false,
-    );
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: false,
+      );
 
-    if (result != null && result.files.isNotEmpty) {
-      final file = result.files.first;
-      final path = file.path;
-      if (path == null) return;
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        final path = file.path;
+        if (path == null) return;
 
-      _saveState();
-      setState(() {
-        // 원하는 타입으로 저장
-        _currentBlocks.add(
-          BlockData(
-            type: 'file',
-            content: path, // 파일 경로 저장
+        _saveState();
+        setState(() {
+          // 원하는 타입으로 저장
+          _currentBlocks.add(
+            BlockData(
+              type: 'file',
+              content: path, // 파일 경로 저장
+            ),
+          );
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${file.name}" 파일이 추가되었습니다.'),
+            duration: const Duration(seconds: 2),
           ),
         );
-      });
-
+      }
+    } catch (e) {
+      debugPrint("파일 불러오기 실패: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('"${file.name}" 파일이 추가되었습니다.'),
-          duration: const Duration(seconds: 2),
+        const SnackBar(
+          content: Text('파일을 불러오지 못했습니다.'),
+          duration: Duration(seconds: 2),
         ),
       );
     }
-  } catch (e) {
-    debugPrint("파일 불러오기 실패: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('파일을 불러오지 못했습니다.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
-}
-
 
   // 페이지 이동
   void _navigateToPage(PageData page) {
@@ -295,11 +289,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         content: _copyContent(block.content),
         textColor: block.textColor,
         backgroundColor: block.backgroundColor,
+        targetPageId: block.targetPageId,
+        linkedPageId: block.linkedPageId,
       );
     }).toList();
-    
+
     _undoStack.add(stateCopy);
-    
+
     if (_undoStack.length > 20) {
       _undoStack.removeAt(0);
     }
@@ -323,7 +319,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _deleteCurrentLine() {
-    if (_currentFocusedBlockIndex >= 0 && 
+    if (_currentFocusedBlockIndex >= 0 &&
         _currentFocusedBlockIndex < _currentBlocks.length) {
       _saveState();
       setState(() {
@@ -339,7 +335,8 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _showColorPicker() {
-    if (_currentFocusedBlockIndex < 0 || _currentFocusedBlockIndex >= _currentBlocks.length) {
+    if (_currentFocusedBlockIndex < 0 ||
+        _currentFocusedBlockIndex >= _currentBlocks.length) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('색상을 적용할 블록을 먼저 선택해주세요'),
@@ -348,7 +345,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       );
       return;
     }
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -378,7 +375,9 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       if (pickedFile != null) {
         _saveState();
         setState(() {
-          _currentBlocks.add(BlockData(type: 'image', content: pickedFile.path));
+          _currentBlocks.add(
+            BlockData(type: 'image', content: pickedFile.path),
+          );
         });
       }
     } catch (e) {
@@ -388,212 +387,221 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _showImagePickerModal() {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (context) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              "추가",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Colors.black87),
-              title: const Text("갤러리에서 선택"),
-              onTap: () => _pickImage(ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Colors.black87),
-              title: const Text("사진 촬영"),
-              onTap: () => _pickImage(ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.attach_file, color: Colors.black87),
-              title: const Text("파일 추가"),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFile();
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      );
-    },
-  );
-}
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "추가",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.black87),
+                title: const Text("갤러리에서 선택"),
+                onTap: () => _pickImage(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.black87),
+                title: const Text("사진 촬영"),
+                onTap: () => _pickImage(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_file, color: Colors.black87),
+                title: const Text("파일 추가"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickFile();
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
+  void _addBlock(String blockType) async {
+    _saveState();
 
-  void _addBlock(String blockType) async { 
-  _saveState();
-  
-  switch (blockType) {
-    case 'text':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'text', content: ''));
-      });
-      break;
-      
-    case 'heading1':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'heading1', content: ''));
-      });
-      break;
-      
-    case 'heading2':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'heading2', content: ''));
-      });
-      break;
-      
-    case 'heading3':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'heading3', content: ''));
-      });
-      break;
-      
-    case 'bulleted_list':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'bulleted_list', content: ''));
-      });
-      break;
-      
-    case 'numbered_list':
-      int nextNumber = 1;
-      for (var block in _currentBlocks) {
-        if (block.type == 'numbered_list') {
-          final data = block.content as Map<String, dynamic>;
-          int num = data['number'] ?? 1;
-          if (num >= nextNumber) {
-            nextNumber = num + 1;
+    switch (blockType) {
+      case 'text':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'text', content: ''));
+        });
+        break;
+
+      case 'heading1':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'heading1', content: ''));
+        });
+        break;
+
+      case 'heading2':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'heading2', content: ''));
+        });
+        break;
+
+      case 'heading3':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'heading3', content: ''));
+        });
+        break;
+
+      case 'bulleted_list':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'bulleted_list', content: ''));
+        });
+        break;
+
+      case 'numbered_list':
+        int nextNumber = 1;
+        for (var block in _currentBlocks) {
+          if (block.type == 'numbered_list') {
+            final data = block.content as Map<String, dynamic>;
+            int num = data['number'] ?? 1;
+            if (num >= nextNumber) {
+              nextNumber = num + 1;
+            }
           }
         }
-      }
-      setState(() {
-        _currentBlocks.add(BlockData(
-          type: 'numbered_list',
-          content: {'number': nextNumber, 'text': ''},
-        ));
-      });
-      break;
-      
-    case 'todo_list':
-      setState(() {
-        _currentBlocks.add(BlockData(
-          type: 'todo_list',
-          content: {'checked': false, 'text': ''},
-        ));
-      });
-      break;
-      
-    case 'toggle_list':
-      setState(() {
-        _currentBlocks.add(BlockData(
-          type: 'toggle_list',
-          content: {'title': '', 'content': ''},
-        ));
-      });
-      break;
-      
-    case 'page':
-      final newPageId = DateTime.now().millisecondsSinceEpoch.toString();
-      final newPageTitle = '제목 없음';
-      
-      final newPage = PageData(
-        id: newPageId,
-        title: newPageTitle,
-        lastEdited: DateTime.now(),
-      );
-      
-      final repository = Provider.of<PageRepository>(context, listen: false);
-      
-      try {
-        await repository.createPage(newPage);
-        
-        final defaultBlocks = [
-          BlockData(type: 'title', content: newPageTitle),
-          BlockData(type: 'text', content: ''),
-        ];
-        
-        await repository.saveBlocks(newPageId, defaultBlocks);
-        savePageBlocks(newPageId, defaultBlocks);
-        
-        debugPrint('하위 페이지 생성 완료: $newPageId');
-        
-        if (widget.onPageCreated != null) {
-          widget.onPageCreated!(newPage);
-        }
-        
         setState(() {
-          _currentBlocks.add(BlockData(
-            type: 'page',
-            content: '$newPageId|$newPageTitle',
-          ));
+          _currentBlocks.add(
+            BlockData(
+              type: 'numbered_list',
+              content: {'number': nextNumber, 'text': ''},
+            ),
+          );
         });
-      } catch (e) {
-        debugPrint('하위 페이지 생성 실패: $e');
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('페이지 생성 실패: $e')),
+        break;
+
+      case 'todo_list':
+        setState(() {
+          _currentBlocks.add(
+            BlockData(
+              type: 'todo_list',
+              content: {'checked': false, 'text': ''},
+            ),
           );
+        });
+        break;
+
+      case 'toggle_list':
+        setState(() {
+          _currentBlocks.add(
+            BlockData(
+              type: 'toggle_list',
+              content: {'title': '', 'content': ''},
+            ),
+          );
+        });
+        break;
+
+      case 'page':
+        final newPageId = DateTime.now().millisecondsSinceEpoch.toString();
+        final newPageTitle = '제목 없음';
+
+        final newPage = PageData(
+          id: newPageId,
+          title: newPageTitle,
+          lastEdited: DateTime.now(),
+        );
+
+        final repository = Provider.of<PageRepository>(context, listen: false);
+
+        try {
+          await repository.createPage(newPage);
+
+          final defaultBlocks = [
+            BlockData(type: 'title', content: newPageTitle),
+            BlockData(type: 'text', content: ''),
+          ];
+
+          await repository.saveBlocks(newPageId, defaultBlocks);
+          savePageBlocks(newPageId, defaultBlocks);
+
+          debugPrint('하위 페이지 생성 완료: $newPageId');
+
+          if (widget.onPageCreated != null) {
+            widget.onPageCreated!(newPage);
+          }
+
+          setState(() {
+            _currentBlocks.add(
+              BlockData(type: 'page', content: '$newPageId|$newPageTitle'),
+            );
+          });
+        } catch (e) {
+          debugPrint('하위 페이지 생성 실패: $e');
+
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('페이지 생성 실패: $e')));
+          }
         }
-      }
-      break;
-      
-    case 'callout':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'callout', content: ''));
-      });
-      break;
-      
-    case 'quote':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'quote', content: ''));
-      });
-      break;
-      
-    case 'divider':
-      setState(() {
-        _currentBlocks.add(BlockData(type: 'divider', content: null));
-      });
-      break;
-      
-    case '표':
-      Navigator.pop(context);
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (BuildContext context) {
-          return TableSizeSelectorModal(
-            onTableCreated: (rows, cols) {
-              _saveState();
-              setState(() {
-                _currentBlocks.add(BlockData(type: 'table', content: {'rows': rows, 'cols': cols}));
-              });
-              Navigator.pop(context);
-            },
-          );
-        },
-      );
-      return;
-      
+        break;
+
+      case 'callout':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'callout', content: ''));
+        });
+        break;
+
+      case 'quote':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'quote', content: ''));
+        });
+        break;
+
+      case 'divider':
+        setState(() {
+          _currentBlocks.add(BlockData(type: 'divider', content: null));
+        });
+        break;
+
+      case '표':
+        Navigator.pop(context);
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (BuildContext context) {
+            return TableSizeSelectorModal(
+              onTableCreated: (rows, cols) {
+                _saveState();
+                setState(() {
+                  _currentBlocks.add(
+                    BlockData(
+                      type: 'table',
+                      content: {'rows': rows, 'cols': cols},
+                    ),
+                  );
+                });
+                Navigator.pop(context);
+              },
+            );
+          },
+        );
+        return;
+
       case '코드':
         setState(() {
           _currentBlocks.add(BlockData(type: 'code', content: ''));
         });
         break;
-        
+
       case '막대 차트':
         setState(() {
           _currentBlocks.add(BlockData(type: 'chart', content: null));
@@ -603,9 +611,9 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       case 'page_link':
         // 1) 링크할 페이지 선택
         if (widget.allPages == null || widget.allPages!.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('링크할 수 있는 페이지가 없습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('링크할 수 있는 페이지가 없습니다.')));
           break;
         }
 
@@ -625,22 +633,21 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             BlockData(
               type: 'page_link',
               content: selectedPage.title,
+              linkedPageId: selectedPage.id,
               targetPageId: selectedPage.id,
             ),
           );
         });
         break;
 
-        
       default:
         setState(() {
           _currentBlocks.add(BlockData(type: 'text', content: ''));
         });
     }
-    
+
     Navigator.pop(context);
   }
-
 
   void _showBlockSelector() {
     showModalBottomSheet(
@@ -657,9 +664,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: _PageActionsDialog(
           page: widget.page,
           onFontChanged: () => setState(() {}),
@@ -702,8 +707,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final firestore = FirebaseFirestore.instance;
 
     // 항상 최신 페이지 문서를 Firestore에서 읽어서 teamSpaceId 가져오기
-    final pageSnap =
-        await firestore.collection('pages').doc(widget.page.id).get();
+    final pageSnap = await firestore
+        .collection('pages')
+        .doc(widget.page.id)
+        .get();
     final data = pageSnap.data();
     final String? teamSpaceId = data?['teamSpaceId'] as String?;
 
@@ -719,7 +726,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (teamSpaceId != null)
-                    SizedBox(               
+                    SizedBox(
                       height: 120,
                       child: StreamBuilder<QuerySnapshot>(
                         stream: firestore
@@ -734,31 +741,36 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                           }
                           final docs = snapshot.data!.docs;
                           if (docs.isEmpty) {
-                            return const Center(
-                              child: Text('아직 팀원이 없습니다.'),
-                            );
+                            return const Center(child: Text('아직 팀원이 없습니다.'));
                           }
                           return ListView.builder(
                             itemCount: docs.length,
                             itemBuilder: (context, index) {
-                              final m = docs[index].data() as Map<String, dynamic>;
+                              final m =
+                                  docs[index].data() as Map<String, dynamic>;
                               final role = m['role'] ?? 'member';
-                              final uid  = m['userUid'] ?? '';
+                              final uid = m['userUid'] ?? '';
 
                               return FutureBuilder<DocumentSnapshot>(
-                                future: firestore.collection('users').doc(uid).get(),
+                                future: firestore
+                                    .collection('users')
+                                    .doc(uid)
+                                    .get(),
                                 builder: (context, userSnap) {
                                   String emailText = uid; // fallback
-                                  if (userSnap.hasData && userSnap.data!.data() != null) {
-                                    final u = userSnap.data!.data() as Map<String, dynamic>;
+                                  if (userSnap.hasData &&
+                                      userSnap.data!.data() != null) {
+                                    final u =
+                                        userSnap.data!.data()
+                                            as Map<String, dynamic>;
                                     emailText = u['email'] ?? uid;
                                   }
 
                                   return ListTile(
                                     dense: true,
                                     leading: const Icon(Icons.person, size: 20),
-                                    title: Text(emailText),   
-                                    subtitle: Text(role),     
+                                    title: Text(emailText),
+                                    subtitle: Text(role),
                                   );
                                 },
                               );
@@ -770,8 +782,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: controller,
-                    decoration:
-                        const InputDecoration(labelText: '이메일 입력'),
+                    decoration: const InputDecoration(labelText: '이메일 입력'),
                   ),
                 ],
               ),
@@ -799,8 +810,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   if (snap.docs.isEmpty) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('해당 이메일 사용자를 찾을 수 없습니다.')),
+                        const SnackBar(content: Text('해당 이메일 사용자를 찾을 수 없습니다.')),
                       );
                     }
                     return;
@@ -809,35 +819,30 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   final invitedUid = snap.docs.first.id;
                   debugPrint('invitedUid: $invitedUid');
 
-                  if (teamSpaceId == null) {
-                    // 첫 초대 -> 팀 생성 + 초대
-                    await repo.promotePageToTeam(
-                      pageId: widget.page.id,
-                      memberUids: [invitedUid],
-                    );
-                    debugPrint('promotePageToTeam done (first invite)');
-                  } else {
-                    // 이미 팀이면 나중에: teamMembers에만 추가하는 로직 만들 수 있음
-                    debugPrint(
-                        'already team space: $teamSpaceId (추가 초대 로직 TODO)');
-                  }
+                  await repo.promotePageToTeam(
+                    pageId: widget.page.id,
+                    memberUids: [invitedUid],
+                  );
+                  debugPrint('promotePageToTeam done (invite)');
 
                   if (mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(teamSpaceId == null
-                            ? '팀 페이지로 전환 및 초대 완료'
-                            : '초대 처리 완료'),
+                        content: Text(
+                          teamSpaceId == null
+                              ? '팀 페이지로 전환 및 초대 완료'
+                              : '초대 처리 완료',
+                        ),
                       ),
                     );
                   }
                 } catch (e) {
                   debugPrint('invite error: $e');
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('초대 실패: $e')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('초대 실패: $e')));
                   }
                 }
               },
@@ -848,9 +853,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       },
     );
   }
-
-
-
 
   void _showPageNavigationDialog() {
     if (widget.allPages == null || widget.allPages!.isEmpty) {
@@ -866,15 +868,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: _PageNavigationDialog(
           allPages: widget.allPages!,
           currentPage: widget.page,
           onPageSelected: (selectedPage) {
             Navigator.pop(context);
-            
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -902,12 +902,12 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final bool isKeyboardVisible = keyboardHeight > 0;
     final double bottomBarHeight = 50.0 + MediaQuery.of(context).padding.bottom;
-    
+
     final previousPage = _previousPage;
     final nextPage = _nextPage;
     final hasNavigation = previousPage != null || nextPage != null;
 
-      // 로딩 중일 때 로딩 화면 표시
+    // 로딩 중일 때 로딩 화면 표시
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -917,9 +917,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           ),
           title: const Text('로딩 중...'),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -948,7 +946,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.group_add),
-            onPressed: _showMembersDialog, 
+            onPressed: _showMembersDialog,
           ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
@@ -968,7 +966,9 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             itemCount: _currentBlocks.length + 1,
             itemBuilder: (context, index) {
               if (index == _currentBlocks.length) {
-                return SizedBox(height: isKeyboardVisible ? 0 : bottomBarHeight);
+                return SizedBox(
+                  height: isKeyboardVisible ? 0 : bottomBarHeight,
+                );
               }
 
               final block = _currentBlocks[index];
@@ -983,13 +983,14 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     focusNode: _focusNode,
                     pageId: widget.page.id,
                     textColor: block.textColor,
-                    onChanged: (val) async {  // async 추가
+                    onChanged: (val) async {
+                      // async 추가
                       block.content = val;
                       widget.page.title = val;
                       widget.page.lastEdited = DateTime.now();
                       widget.onPageChanged?.call();
                       setState(() {});
-                      
+
                       if (_repository != null) {
                         try {
                           await _repository!.updatePage(widget.page);
@@ -1007,7 +1008,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'text':
                   blockWidget = EditableTextBlock(
                     key: ValueKey(block),
@@ -1031,8 +1032,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                       (block.content as String).split('/').last, // 파일명만 표시
                       style: const TextStyle(fontSize: 14),
                     ),
-                    onTap: () {
-                    },
+                    onTap: () {},
                   );
                   break;
 
@@ -1054,7 +1054,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'heading2':
                   blockWidget = HeadingBlock(
                     key: ValueKey(block),
@@ -1073,7 +1073,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'heading3':
                   blockWidget = HeadingBlock(
                     key: ValueKey(block),
@@ -1092,7 +1092,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'bulleted_list':
                   blockWidget = BulletedListBlock(
                     key: ValueKey(block),
@@ -1108,7 +1108,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                       _saveState();
                       setState(() {
                         final idx = _currentBlocks.indexOf(block);
-                        _currentBlocks.insert(idx + 1, BlockData(type: 'bulleted_list', content: ''));
+                        _currentBlocks.insert(
+                          idx + 1,
+                          BlockData(type: 'bulleted_list', content: ''),
+                        );
                       });
                     },
                     onBackspacePressed: () {
@@ -1116,7 +1119,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                         if ((block.content as String).isEmpty) {
                           _saveState();
                           final idx = _currentBlocks.indexOf(block);
-                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                          _currentBlocks[idx] = BlockData(
+                            type: 'text',
+                            content: '',
+                          );
                         }
                       });
                     },
@@ -1127,19 +1133,19 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'numbered_list':
                   final data = block.content as Map<String, dynamic>;
-                  
+
                   final currentIndex = _currentBlocks.indexOf(block);
-                  
+
                   int displayNumber = 1;
                   for (int i = 0; i < currentIndex; i++) {
                     if (_currentBlocks[i].type == 'numbered_list') {
                       displayNumber++;
                     }
                   }
-                  
+
                   blockWidget = NumberedListBlock(
                     key: ValueKey(block),
                     number: displayNumber,
@@ -1170,7 +1176,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                         if ((data['text'] ?? '').isEmpty) {
                           _saveState();
                           final idx = _currentBlocks.indexOf(block);
-                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                          _currentBlocks[idx] = BlockData(
+                            type: 'text',
+                            content: '',
+                          );
                         }
                       });
                     },
@@ -1181,7 +1190,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'todo_list':
                   final data = block.content as Map<String, dynamic>;
                   blockWidget = TodoListBlock(
@@ -1220,7 +1229,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                         if ((data['text'] ?? '').isEmpty) {
                           _saveState();
                           final idx = _currentBlocks.indexOf(block);
-                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                          _currentBlocks[idx] = BlockData(
+                            type: 'text',
+                            content: '',
+                          );
                         }
                       });
                     },
@@ -1231,7 +1243,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'toggle_list':
                   final data = block.content as Map<String, dynamic>;
                   blockWidget = ToggleListBlock(
@@ -1270,7 +1282,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                         if ((data['title'] ?? '').isEmpty) {
                           _saveState();
                           final idx = _currentBlocks.indexOf(block);
-                          _currentBlocks[idx] = BlockData(type: 'text', content: '');
+                          _currentBlocks[idx] = BlockData(
+                            type: 'text',
+                            content: '',
+                          );
                         }
                       });
                     },
@@ -1281,7 +1296,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'callout':
                   blockWidget = CalloutBlock(
                     key: ValueKey(block),
@@ -1296,7 +1311,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'quote':
                   blockWidget = QuoteBlock(
                     key: ValueKey(block),
@@ -1311,17 +1326,17 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'divider':
                   blockWidget = const DividerBlock();
                   break;
-                
+
                 case 'page':
                   final contentStr = block.content as String;
                   final parts = contentStr.split('|');
                   final pageId = parts[0];
                   final pageTitle = parts.length > 1 ? parts[1] : '제목 없음';
-                  
+
                   blockWidget = PageLinkBlock(
                     key: ValueKey(block),
                     pageTitle: pageTitle,
@@ -1335,7 +1350,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                           }
                         }
                       }
-                      
+
                       if (targetPage != null) {
                         Navigator.push(
                           context,
@@ -1361,7 +1376,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-                
+
                 case 'code':
                   blockWidget = CodeBlock(
                     key: ValueKey(block),
@@ -1414,22 +1429,25 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   );
                   break;
 
-
                 case 'image':
-                  blockWidget = ImageBlock(imageFile: File(block.content as String));
+                  blockWidget = ImageBlock(
+                    imageFile: File(block.content as String),
+                  );
                   break;
                 case 'page_link':
                   blockWidget = PageLinkBlock(
                     pageTitle: block.content as String,
                     onTap: () {
-                      final targetId = block.targetPageId;
+                      final targetId = block.linkedPageId ?? block.targetPageId;
                       if (targetId == null || targetId.isEmpty) return;
 
                       final allPages = _getAllPages();
 
                       PageData? targetPage;
                       try {
-                        targetPage = allPages.firstWhere((p) => p.id == targetId);
+                        targetPage = allPages.firstWhere(
+                          (p) => p.id == targetId,
+                        );
                       } catch (_) {
                         targetPage = null;
                       }
@@ -1445,8 +1463,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
-
-
 
                 default:
                   blockWidget = const SizedBox.shrink();
@@ -1474,10 +1490,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                       pageTitle: previousPage.title,
                       onPressed: () => _navigateToPage(previousPage),
                     ),
-                  
+
                   if (previousPage != null && nextPage != null)
                     const SizedBox(height: 8),
-                  
+
                   if (nextPage != null)
                     _NavigationButton(
                       icon: Icons.arrow_downward,
@@ -1504,9 +1520,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
               canUndo: canUndo,
             )
           else
-            NotionBottomBar(
-              onNewPage: widget.onNewPage,
-            ),
+            NotionBottomBar(onNewPage: widget.onNewPage),
         ],
       ),
 
@@ -1621,7 +1635,7 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
     if (_searchQuery.isEmpty) {
       return widget.allPages;
     }
-    
+
     return widget.allPages.where((page) {
       return page.title.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
@@ -1708,7 +1722,7 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
                       itemBuilder: (context, index) {
                         final page = _filteredPages[index];
                         final isCurrentPage = page.id == widget.currentPage.id;
-                        
+
                         return ListTile(
                           contentPadding: EdgeInsets.only(
                             left: 20.0 + (page.level * 20.0),
@@ -1724,7 +1738,9 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
                             style: TextStyle(
                               fontSize: 14,
                               color: isCurrentPage ? Colors.blue : Colors.black,
-                              fontWeight: isCurrentPage ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isCurrentPage
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                           trailing: isCurrentPage
@@ -1743,7 +1759,7 @@ class _PageNavigationDialogState extends State<_PageNavigationDialog> {
                     ),
             ),
           ),
-          
+
           const SizedBox(height: 10),
 
           Padding(
@@ -1796,11 +1812,11 @@ class _PageActionsDialog extends StatefulWidget {
 class _PageActionsDialogState extends State<_PageActionsDialog> {
   void _copyPageLink() async {
     final pageId = widget.page.id;
-    
+
     await Clipboard.setData(ClipboardData(text: pageId));
-    
+
     if (mounted) Navigator.pop(context);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1819,10 +1835,7 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                pageId,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text(pageId, style: const TextStyle(fontSize: 12)),
             ],
           ),
           duration: const Duration(seconds: 3),
@@ -1866,7 +1879,10 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
                   label: '기본',
                   isSelected: currentFont == FontFamily.basic,
                   onTap: () {
-                    fontProvider.setFontFamily(widget.page.id, FontFamily.basic);
+                    fontProvider.setFontFamily(
+                      widget.page.id,
+                      FontFamily.basic,
+                    );
                     widget.onFontChanged();
                   },
                 ),
@@ -1875,7 +1891,10 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
                   label: '세리프',
                   isSelected: currentFont == FontFamily.serif,
                   onTap: () {
-                    fontProvider.setFontFamily(widget.page.id, FontFamily.serif);
+                    fontProvider.setFontFamily(
+                      widget.page.id,
+                      FontFamily.serif,
+                    );
                     widget.onFontChanged();
                   },
                 ),
@@ -1891,7 +1910,7 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
               ],
             ),
           ),
-          
+
           const Divider(height: 32),
 
           _ActionMenuItem(
@@ -1903,26 +1922,26 @@ class _PageActionsDialogState extends State<_PageActionsDialog> {
               Navigator.pop(context);
             },
           ),
-          
+
           _ActionMenuItem(
             icon: Icons.link,
             title: '링크 복사',
             onTap: _copyPageLink,
           ),
-          
+
           _ActionMenuItem(
             icon: Icons.content_copy,
             title: '복제',
             onTap: widget.onDuplicate,
           ),
-          
+
           if (!isTeamPage)
             _ActionMenuItem(
               icon: Icons.drive_file_move_outline,
               title: '옮기기',
               onTap: widget.onMove,
             ),
-          
+
           _ActionMenuItem(
             icon: Icons.delete_outline,
             title: '휴지통으로 이동',
@@ -1997,10 +2016,7 @@ class _ActionMenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon, size: 22, color: iconColor),
-      title: Text(
-        title,
-        style: TextStyle(fontSize: 15, color: textColor),
-      ),
+      title: Text(title, style: TextStyle(fontSize: 15, color: textColor)),
       onTap: onTap,
     );
   }

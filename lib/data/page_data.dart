@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 class BlockData {
   String type;
   dynamic content;
-  Color? textColor;       
-  Color? backgroundColor;  
+  Color? textColor;
+  Color? backgroundColor;
   String? targetPageId;
+  String? linkedPageId;
 
   BlockData({
     required this.type,
@@ -14,9 +15,9 @@ class BlockData {
     this.textColor,
     this.backgroundColor,
     this.targetPageId,
+    this.linkedPageId,
   });
 }
-
 
 // 페이지 메타데이터 모델
 class PageMetadata {
@@ -27,15 +28,15 @@ class PageMetadata {
 
 // 페이지 데이터 모델
 class PageData {
-  final String id; 
-  String title; 
-  DateTime lastEdited; 
-  bool isFavorite; 
-  bool isExpanded; 
-  List<PageData> subPages; 
+  final String id;
+  String title;
+  DateTime lastEdited;
+  bool isFavorite;
+  bool isExpanded;
+  List<PageData> subPages;
   PageData? parentPage;
-  String? parentId; 
-  String? teamSpaceId; 
+  String? parentId;
+  String? teamSpaceId;
 
   PageData({
     required this.id,
@@ -44,7 +45,7 @@ class PageData {
     this.isFavorite = false,
     this.isExpanded = false,
     this.parentId,
-    this.teamSpaceId, 
+    this.teamSpaceId,
     List<PageData>? subPages,
     this.parentPage,
   }) : subPages = subPages ?? [];
@@ -59,7 +60,7 @@ class PageData {
     List<PageData>? subPages,
     PageData? parentPage,
     String? parentId,
-    String? teamSpaceId, 
+    String? teamSpaceId,
   }) {
     return PageData(
       id: id ?? this.id,
@@ -113,7 +114,6 @@ void savePageBlocks(String pageId, List<BlockData> blocks) {
   debugPrint('페이지 블록 저장: $pageId, ${blocks.length}개 블록');
 }
 
-
 // 새 페이지를 생성하고 리스트에 추가하는 함수
 String addNewPage() {
   final newId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -129,7 +129,7 @@ String addNewPage() {
 String getPageContent(String pageId) {
   final blocks = getPageBlocks(pageId);
   StringBuffer content = StringBuffer();
-  
+
   for (var block in blocks) {
     if (block.type == 'title' || block.type == 'text') {
       if (block.content != null && block.content.toString().isNotEmpty) {
@@ -138,6 +138,6 @@ String getPageContent(String pageId) {
       }
     }
   }
-  
+
   return content.toString().trim();
 }

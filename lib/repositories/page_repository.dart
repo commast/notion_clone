@@ -1,27 +1,27 @@
 import '../data/page_data.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart'; 
+import '../services/auth_service.dart';
 import 'package:flutter/material.dart';
 import '../services/firestore_api_service.dart';
 
 class PageRepository {
   final ApiService _apiService;
   final AuthService _authService;
-  
+
   PageRepository(this._apiService, this._authService);
-  
+
   // 현재 사용자 ID 가져오기 (로그아웃 상태면 빈 문자열 '' 반환)
   String get _userId => _authService.getCurrentUserId();
 
   /// 모든 페이지 가져오기
   Future<List<PageData>> getAllPages() async {
-    final currentUserId = _userId; 
-    
+    final currentUserId = _userId;
+
     try {
       // 로그아웃 상태면 userId가 ''인 데이터(게스트 데이터)를 가져옴
       // 로그인 상태면 userId가 '내UID'인 데이터를 가져옴
       final pagesJson = await _apiService.fetchPages(currentUserId);
-      
+
       return pagesJson.map((json) {
         return PageData(
           id: json['id'] as String,
@@ -37,7 +37,7 @@ class PageRepository {
       rethrow;
     }
   }
-  
+
   /// 특정 페이지 가져오기
   Future<PageData> getPage(String pageId) async {
     try {
@@ -54,7 +54,7 @@ class PageRepository {
       rethrow;
     }
   }
-  
+
   /// 새 페이지 생성
   Future<String> createPage(PageData page) async {
     try {
@@ -65,16 +65,16 @@ class PageRepository {
         'lastEdited': page.lastEdited.toIso8601String(),
         'isFavorite': page.isFavorite,
         'parentId': page.parentId,
-        'teamSpaceId': page.teamSpaceId, 
+        'teamSpaceId': page.teamSpaceId,
       }, _userId);
-      
+
       return pageId;
     } catch (e) {
       debugPrint('[Repository] createPage 실패: $e');
       rethrow;
     }
   }
-  
+
   /// 페이지 업데이트
   Future<void> updatePage(PageData page) async {
     try {
@@ -82,14 +82,14 @@ class PageRepository {
         'title': page.title,
         'lastEdited': page.lastEdited.toIso8601String(),
         'isFavorite': page.isFavorite,
-         'parentId': page.parentId, 
+        'parentId': page.parentId,
       }, _userId);
     } catch (e) {
       debugPrint('[Repository] updatePage 실패: $e');
       rethrow;
     }
   }
-  
+
   /// 페이지 삭제
   Future<void> deletePage(String pageId) async {
     try {
@@ -99,24 +99,27 @@ class PageRepository {
       rethrow;
     }
   }
-  
+
   /// 페이지의 블록들 가져오기
   Future<List<BlockData>> getBlocks(String pageId) async {
     try {
       final blocksJson = await _apiService.fetchBlocks(pageId, _userId);
-      
+
       return blocksJson.map((json) {
         Color? textColor;
         Color? backgroundColor;
-        if (json['textColor'] != null) textColor = Color(json['textColor'] as int);
-        if (json['backgroundColor'] != null) backgroundColor = Color(json['backgroundColor'] as int);
-        
+        if (json['textColor'] != null)
+          textColor = Color(json['textColor'] as int);
+        if (json['backgroundColor'] != null)
+          backgroundColor = Color(json['backgroundColor'] as int);
+
         return BlockData(
           type: json['type'] as String,
           content: json['content'],
           textColor: textColor,
           backgroundColor: backgroundColor,
           targetPageId: json['targetPageId'] as String?,
+          linkedPageId: json['linkedPageId'] as String?,
         );
       }).toList();
     } catch (e) {
@@ -124,7 +127,7 @@ class PageRepository {
       rethrow;
     }
   }
-  
+
   /// 블록들 저장
   Future<void> saveBlocks(String pageId, List<BlockData> blocks) async {
     try {
@@ -132,12 +135,13 @@ class PageRepository {
         return {
           'type': block.type,
           'content': block.content,
-          'textColor': block.textColor?.value, 
+          'textColor': block.textColor?.value,
           'backgroundColor': block.backgroundColor?.value,
-          'targetPageId': block.targetPageId, 
+          'targetPageId': block.targetPageId,
+          'linkedPageId': block.linkedPageId,
         };
       }).toList();
-      
+
       await _apiService.saveBlocks(pageId, blocksJson, _userId);
     } catch (e) {
       debugPrint('[Repository] saveBlocks 실패: $e');
@@ -186,7 +190,7 @@ class PageRepository {
   /// 휴지통에서 복원
   Future<void> restoreFromTrash(String pageId) async {
     try {
-      await _apiService.restoreFromTrash(pageId, _userId); 
+      await _apiService.restoreFromTrash(pageId, _userId);
     } catch (e) {
       debugPrint('[Repository] restoreFromTrash 실패: $e');
       rethrow;

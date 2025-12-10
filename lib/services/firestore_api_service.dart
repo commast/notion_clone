@@ -75,20 +75,57 @@ class FirestoreApiService implements ApiService {
     }
   }
 
-
   @override
   Future<Map<String, dynamic>> fetchPage(String pageId, String userId) async {
     try {
-      final doc = await _firestore.collection('pages').doc(pageId).get();
-      
-      if (!doc.exists || doc.data()?['userId'] != userId) {
-        throw Exception('페이지를 찾을 수 없거나 접근 권한이 없습니다: $pageId');
+      // 1) 페이지 문서 읽기
+      final docRef = _firestore.collection('pages').doc(pageId);
+      final doc = await docRef.get();
+
+      if (!doc.exists) {
+        throw Exception('페이지를 찾을 수 없습니다: $pageId');
       }
 
       final data = doc.data()!;
+
+      // 2) 소유자 / 팀스페이스 정보 가져오기
+      final String? ownerUid = data['userId'] as String?;
+      final dynamic teamSpaceIdRaw = data['teamSpaceId'];
+      final String? teamSpaceId =
+          (teamSpaceIdRaw is String && teamSpaceIdRaw.isNotEmpty)
+          ? teamSpaceIdRaw
+          : null;
+
+      // 3) 접근 권한 체크 (소유자 또는 팀 멤버)
+      bool hasAccess = false;
+
+      // 3-1) 내가 소유자인 경우
+      if (ownerUid == userId) {
+        hasAccess = true;
+      }
+
+      // 3-2) 팀 페이지인 경우: teamMembers 컬렉션에서 멤버 여부 확인
+      if (!hasAccess && teamSpaceId != null) {
+        final memberSnap = await _firestore
+            .collection('teamMembers')
+            .where('teamSpaceId', isEqualTo: teamSpaceId)
+            .where('userUid', isEqualTo: userId)
+            .limit(1)
+            .get();
+
+        if (memberSnap.docs.isNotEmpty) {
+          hasAccess = true;
+        }
+      }
+
+      if (!hasAccess) {
+        throw Exception('페이지를 찾을 수 없거나 접근 권한이 없습니다: $pageId');
+      }
+
+      // 4) lastEdited 값 변환
       final lastEditedValue = data['lastEdited'];
       String lastEditedString;
-      
+
       if (lastEditedValue is Timestamp) {
         lastEditedString = lastEditedValue.toDate().toIso8601String();
       } else if (lastEditedValue is String) {
@@ -96,7 +133,8 @@ class FirestoreApiService implements ApiService {
       } else {
         lastEditedString = DateTime.now().toIso8601String();
       }
-      
+
+      // 5) 최종 리턴 데이터 구성
       return {
         'id': doc.id,
         'title': data['title'] ?? '제목 없음',
@@ -112,10 +150,13 @@ class FirestoreApiService implements ApiService {
   }
 
   @override
-  Future<String> createPage(Map<String, dynamic> pageData, String userId) async {
+  Future<String> createPage(
+    Map<String, dynamic> pageData,
+    String userId,
+  ) async {
     try {
       final pageId = pageData['id'] as String;
-      
+
       await _firestore.collection('pages').doc(pageId).set({
         'title': pageData['title'],
         'lastEdited': pageData['lastEdited'],
@@ -124,8 +165,10 @@ class FirestoreApiService implements ApiService {
         'teamSpaceId': pageData['teamSpaceId'],
         'userId': userId,
       });
-      
-      debugPrint('[Firestore] 페이지 생성 완료: $pageId (parentId: ${pageData['parentId']})');
+
+      debugPrint(
+        '[Firestore] 페이지 생성 완료: $pageId (parentId: ${pageData['parentId']})',
+      );
       return pageId;
     } catch (e) {
       debugPrint('[Firestore] createPage 실패: $e');
@@ -134,14 +177,18 @@ class FirestoreApiService implements ApiService {
   }
 
   @override
-  Future<void> updatePage(String pageId, Map<String, dynamic> pageData, String userId) async {
+  Future<void> updatePage(
+    String pageId,
+    Map<String, dynamic> pageData,
+    String userId,
+  ) async {
     try {
       final updateData = <String, dynamic>{
         'title': pageData['title'],
         'lastEdited': FieldValue.serverTimestamp(),
         'isFavorite': pageData['isFavorite'],
       };
-      
+
       // parentId가 제공된 경우에만 업데이트
       if (pageData.containsKey('parentId')) {
         updateData['parentId'] = pageData['parentId'] ?? '';
@@ -149,9 +196,9 @@ class FirestoreApiService implements ApiService {
       if (pageData.containsKey('teamSpaceId')) {
         updateData['teamSpaceId'] = pageData['teamSpaceId'];
       }
-      
+
       await _firestore.collection('pages').doc(pageId).update(updateData);
-      
+
       debugPrint('[Firestore] 페이지 업데이트 완료: $pageId');
     } catch (e) {
       debugPrint('[Firestore] updatePage 실패: $e');
@@ -163,51 +210,75 @@ class FirestoreApiService implements ApiService {
   Future<void> deletePage(String pageId, String userId) async {
     await moveToTrash(pageId, userId);
   }
-  
+
   Future<void> promotePageToTeam({
     required String pageId,
     required String ownerUid,
     required List<String> memberUids,
   }) async {
-    debugPrint('promotePageToTeam start: pageId=$pageId, owner=$ownerUid, members=$memberUids');
+    debugPrint(
+      'promotePageToTeam start: pageId=$pageId, owner=$ownerUid, members=$memberUids',
+    );
+
+    // 1) 페이지 정보 먼저 읽어서 기존 teamSpaceId 있는지 확인
+    final pageRef = _firestore.collection('pages').doc(pageId);
+    final pageSnap = await pageRef.get();
+
+    if (!pageSnap.exists) {
+      throw Exception('페이지를 찾을 수 없습니다: $pageId');
+    }
+
+    final pageData = pageSnap.data()!;
+    String? teamSpaceId = pageData['teamSpaceId'] as String?;
+
     final batch = _firestore.batch();
-
-    final teamDoc = _firestore.collection('teamSpaces').doc();
-    batch.set(teamDoc, {
-      'name': '팀 페이지',
-      'ownerUid': ownerUid,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
+    final teamSpacesCol = _firestore.collection('teamSpaces');
     final membersCol = _firestore.collection('teamMembers');
 
-    batch.set(membersCol.doc(), {
-      'teamSpaceId': teamDoc.id,
-      'userUid': ownerUid,
-      'role': 'owner',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    // 2) teamSpaceId 가 없으면 새 팀스페이스 생성 + owner 등록
+    if (teamSpaceId == null || teamSpaceId.isEmpty) {
+      final teamDoc = teamSpacesCol.doc();
+      teamSpaceId = teamDoc.id;
 
-    for (final uid in memberUids) {
+      batch.set(teamDoc, {
+        'name': '팀 페이지',
+        'ownerUid': ownerUid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 팀 소유자 멤버 등록
       batch.set(membersCol.doc(), {
-        'teamSpaceId': teamDoc.id,
+        'teamSpaceId': teamSpaceId,
+        'userUid': ownerUid,
+        'role': 'owner',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 페이지에 teamSpaceId 연결
+      batch.update(pageRef, {'teamSpaceId': teamSpaceId});
+    }
+
+    // 3) 초대할 멤버들을 팀 멤버로 추가 (여러 명 가능)
+    final uniqueMemberUids = memberUids.toSet()..remove(ownerUid);
+
+    for (final uid in uniqueMemberUids) {
+      batch.set(membersCol.doc(), {
+        'teamSpaceId': teamSpaceId,
         'userUid': uid,
         'role': 'editor',
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
 
-    batch.update(_firestore.collection('pages').doc(pageId), {
-      'teamSpaceId': teamDoc.id,
-    });
-
     await batch.commit();
-    debugPrint('promotePageToTeam batch committed');
+    debugPrint('promotePageToTeam committed (teamSpaceId=$teamSpaceId)');
   }
 
-
   @override
-  Future<List<Map<String, dynamic>>> fetchBlocks(String pageId, String userId) async {
+  Future<List<Map<String, dynamic>>> fetchBlocks(
+    String pageId,
+    String userId,
+  ) async {
     try {
       final snapshot = await _firestore
           .collection('pages')
@@ -232,10 +303,17 @@ class FirestoreApiService implements ApiService {
   }
 
   @override
-  Future<void> saveBlocks(String pageId, List<Map<String, dynamic>> blocks, String userId) async {
+  Future<void> saveBlocks(
+    String pageId,
+    List<Map<String, dynamic>> blocks,
+    String userId,
+  ) async {
     try {
       final batch = _firestore.batch();
-      final blocksRef = _firestore.collection('pages').doc(pageId).collection('blocks');
+      final blocksRef = _firestore
+          .collection('pages')
+          .doc(pageId)
+          .collection('blocks');
 
       final existingBlocks = await blocksRef.get();
       for (var doc in existingBlocks.docs) {
@@ -263,7 +341,11 @@ class FirestoreApiService implements ApiService {
   }
 
   @override
-  Future<void> toggleFavorite(String pageId, bool isFavorite, String userId) async {
+  Future<void> toggleFavorite(
+    String pageId,
+    bool isFavorite,
+    String userId,
+  ) async {
     try {
       await _firestore.collection('pages').doc(pageId).update({
         'isFavorite': isFavorite,
@@ -280,136 +362,139 @@ class FirestoreApiService implements ApiService {
   // 휴지통 관련 메서드
 
   @override
-Future<void> moveToTrash(String pageId, String userId) async {
-  try {
-    final pageDoc = await _firestore.collection('pages').doc(pageId).get();
-    
-    if (!pageDoc.exists || pageDoc.data()?['userId'] != userId) {
-      throw Exception('페이지를 찾을 수 없거나 권한이 없습니다: $pageId');
-    }
-    
-    final pageData = pageDoc.data()!;
-    
-    debugPrint('[Firestore] 휴지통 이동 시작: $pageId (title: ${pageData['title']})');
-    
-    // 1단계: 먼저 하위 페이지를 재귀적으로 휴지통 이동 
-    final subPagesSnapshot = await _firestore
-        .collection('pages')
-        .where('parentId', isEqualTo: pageId)
-        .where('userId', isEqualTo: userId)
-        .get();
-    
-    debugPrint('하위 페이지 ${subPagesSnapshot.docs.length}개 발견');
-    
-    for (var subPageDoc in subPagesSnapshot.docs) {
-      await moveToTrash(subPageDoc.id, userId); 
-    }
-    
-    // 2단계: 현재 페이지를 휴지통으로 복사
-    await _firestore.collection('trash').doc(pageId).set({
-      ...pageData,
-      'deletedAt': FieldValue.serverTimestamp(),
-      'parentId': pageData['parentId'] ?? '',
-    });
-    
-    debugPrint('휴지통에 복사: $pageId');
-    
-    // 3단계: 블록 복사 및 삭제
-    final blocksSnapshot = await _firestore
-        .collection('pages')
-        .doc(pageId)
-        .collection('blocks')
-        .get();
-    
-    final batch = _firestore.batch();
-    
-    for (var blockDoc in blocksSnapshot.docs) {
-      batch.set(
-        _firestore.collection('trash').doc(pageId).collection('blocks').doc(blockDoc.id),
-        blockDoc.data(),
-      );
-      batch.delete(blockDoc.reference);
-    }
-    
-    await batch.commit();
-    
-    // 4단계: 원본 페이지 삭제
-    await _firestore.collection('pages').doc(pageId).delete();
-    
-    debugPrint('원본 삭제 완료: $pageId');
-    
-  } catch (e) {
-    debugPrint('[Firestore] moveToTrash 실패: $e');
-    rethrow;
-  }
-}
+  Future<void> moveToTrash(String pageId, String userId) async {
+    try {
+      final pageDoc = await _firestore.collection('pages').doc(pageId).get();
 
+      if (!pageDoc.exists || pageDoc.data()?['userId'] != userId) {
+        throw Exception('페이지를 찾을 수 없거나 권한이 없습니다: $pageId');
+      }
+
+      final pageData = pageDoc.data()!;
+
+      debugPrint(
+        '[Firestore] 휴지통 이동 시작: $pageId (title: ${pageData['title']})',
+      );
+
+      // 1단계: 먼저 하위 페이지를 재귀적으로 휴지통 이동
+      final subPagesSnapshot = await _firestore
+          .collection('pages')
+          .where('parentId', isEqualTo: pageId)
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      debugPrint('하위 페이지 ${subPagesSnapshot.docs.length}개 발견');
+
+      for (var subPageDoc in subPagesSnapshot.docs) {
+        await moveToTrash(subPageDoc.id, userId);
+      }
+
+      // 2단계: 현재 페이지를 휴지통으로 복사
+      await _firestore.collection('trash').doc(pageId).set({
+        ...pageData,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'parentId': pageData['parentId'] ?? '',
+      });
+
+      debugPrint('휴지통에 복사: $pageId');
+
+      // 3단계: 블록 복사 및 삭제
+      final blocksSnapshot = await _firestore
+          .collection('pages')
+          .doc(pageId)
+          .collection('blocks')
+          .get();
+
+      final batch = _firestore.batch();
+
+      for (var blockDoc in blocksSnapshot.docs) {
+        batch.set(
+          _firestore
+              .collection('trash')
+              .doc(pageId)
+              .collection('blocks')
+              .doc(blockDoc.id),
+          blockDoc.data(),
+        );
+        batch.delete(blockDoc.reference);
+      }
+
+      await batch.commit();
+
+      // 4단계: 원본 페이지 삭제
+      await _firestore.collection('pages').doc(pageId).delete();
+
+      debugPrint('원본 삭제 완료: $pageId');
+    } catch (e) {
+      debugPrint('[Firestore] moveToTrash 실패: $e');
+      rethrow;
+    }
+  }
 
   @override
-Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
-  try {
-    final snapshot = await _firestore
-        .collection('trash')
-        .where('userId', isEqualTo: userId)
-        .orderBy('deletedAt', descending: true)
-        .get();
+  Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('trash')
+          .where('userId', isEqualTo: userId)
+          .orderBy('deletedAt', descending: true)
+          .get();
 
-    debugPrint('휴지통 전체 조회: ${snapshot.docs.length}개');
-    
-    // 최상위 부모만 필터링
-    final allTrashIds = snapshot.docs.map((doc) => doc.id).toSet();
-    final rootPages = <Map<String, dynamic>>[];
-    
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final parentId = data['parentId'] ?? '';
-      
-      if (parentId.isEmpty || !allTrashIds.contains(parentId)) {
-        String safeDate(dynamic value) {
-          if (value is Timestamp) return value.toDate().toIso8601String();
-          if (value is String) return value;
-          return DateTime.now().toIso8601String();
+      debugPrint('휴지통 전체 조회: ${snapshot.docs.length}개');
+
+      // 최상위 부모만 필터링
+      final allTrashIds = snapshot.docs.map((doc) => doc.id).toSet();
+      final rootPages = <Map<String, dynamic>>[];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final parentId = data['parentId'] ?? '';
+
+        if (parentId.isEmpty || !allTrashIds.contains(parentId)) {
+          String safeDate(dynamic value) {
+            if (value is Timestamp) return value.toDate().toIso8601String();
+            if (value is String) return value;
+            return DateTime.now().toIso8601String();
+          }
+
+          rootPages.add({
+            'id': doc.id,
+            'title': data['title'] ?? '제목 없음',
+            'deletedAt': safeDate(data['deletedAt']),
+            'lastEdited': safeDate(data['lastEdited']),
+            'isFavorite': data['isFavorite'] ?? false,
+            'parentId': parentId,
+          });
         }
-        
-        rootPages.add({
-          'id': doc.id,
-          'title': data['title'] ?? '제목 없음',
-          'deletedAt': safeDate(data['deletedAt']),
-          'lastEdited': safeDate(data['lastEdited']),
-          'isFavorite': data['isFavorite'] ?? false,
-          'parentId': parentId,
-        });
       }
-    }
-    
-    debugPrint('휴지통 최상위 페이지: ${rootPages.length}개');
-    return rootPages;
-  } catch (e) {
-    debugPrint('[Firestore] fetchTrash 실패: $e');
-    return [];
-  }
-}
 
+      debugPrint('휴지통 최상위 페이지: ${rootPages.length}개');
+      return rootPages;
+    } catch (e) {
+      debugPrint('[Firestore] fetchTrash 실패: $e');
+      return [];
+    }
+  }
 
   @override
   Future<void> restoreFromTrash(String pageId, String userId) async {
     try {
       final trashDoc = await _firestore.collection('trash').doc(pageId).get();
-      
+
       if (!trashDoc.exists || trashDoc.data()?['userId'] != userId) {
         throw Exception('휴지통에서 페이지를 찾을 수 없거나 권한이 없습니다: $pageId');
       }
-      
+
       final pageData = Map<String, dynamic>.from(trashDoc.data()!);
       pageData.remove('deletedAt');
-      
+
       // parentId 명시적 보존
       final parentId = pageData['parentId'] ?? '';
 
       // 복원
       await _firestore.collection('pages').doc(pageId).set({
         ...pageData,
-        'parentId': parentId,  // 부모 관계 유지
+        'parentId': parentId, // 부모 관계 유지
       });
 
       // 블록 복원
@@ -423,12 +508,16 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
 
       for (var blockDoc in blocksSnapshot.docs) {
         batch.set(
-          _firestore.collection('pages').doc(pageId).collection('blocks').doc(blockDoc.id),
+          _firestore
+              .collection('pages')
+              .doc(pageId)
+              .collection('blocks')
+              .doc(blockDoc.id),
           blockDoc.data(),
         );
         batch.delete(blockDoc.reference);
       }
-      
+
       // 하위 페이지 재귀 복원
       final subPagesSnapshot = await _firestore
           .collection('trash')
@@ -461,29 +550,29 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
           .where('parentId', isEqualTo: pageId)
           .where('userId', isEqualTo: userId)
           .get();
-      
+
       for (var subPageDoc in subPagesSnapshot.docs) {
         await permanentlyDelete(subPageDoc.id, userId);
       }
-      
+
       // 블록 삭제
       final blocksSnapshot = await _firestore
           .collection('trash')
           .doc(pageId)
           .collection('blocks')
           .get();
-      
+
       final batch = _firestore.batch();
-      
+
       for (var blockDoc in blocksSnapshot.docs) {
         batch.delete(blockDoc.reference);
       }
-      
+
       await batch.commit();
-      
+
       // 페이지 삭제
       await _firestore.collection('trash').doc(pageId).delete();
-      
+
       debugPrint('[Firestore] 영구 삭제 완료: $pageId');
     } catch (e) {
       debugPrint('[Firestore] permanentlyDelete 실패: $e');
@@ -494,10 +583,11 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
   @override
   Future<void> emptyTrash(String userId) async {
     try {
-      final snapshot = await _firestore.collection('trash')
+      final snapshot = await _firestore
+          .collection('trash')
           .where('userId', isEqualTo: userId)
           .get();
-      
+
       final batch = _firestore.batch();
       for (var doc in snapshot.docs) {
         final blocksSnapshot = await _firestore
@@ -505,14 +595,14 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
             .doc(doc.id)
             .collection('blocks')
             .get();
-        
+
         for (var blockDoc in blocksSnapshot.docs) {
           batch.delete(blockDoc.reference);
         }
-        
+
         batch.delete(doc.reference);
       }
-      
+
       await batch.commit();
 
       debugPrint('[Firestore] 휴지통 비우기 완료: ${snapshot.docs.length}개 삭제');
@@ -521,20 +611,20 @@ Future<List<Map<String, dynamic>>> fetchTrash(String userId) async {
       rethrow;
     }
   }
-  
+
   @override
   Future<String> uploadImage(String localFilePath) async {
     await Future.delayed(const Duration(milliseconds: 500));
     return 'https://picsum.photos/seed/stub/600/400';
   }
-  
+
   @override
   Future<Map<String, dynamic>> register(String email, String password) async {
-    throw UnimplementedError(); 
+    throw UnimplementedError();
   }
 
   @override
   Future<Map<String, dynamic>> login(String email, String password) async {
-    throw UnimplementedError(); 
+    throw UnimplementedError();
   }
 }

@@ -1,0 +1,58 @@
+@startuml
+title Flutter Notion Clone - High Level Class Diagram
+
+' --- UI Layer ---
+package "Flutter UI" {
+  class NotePageScreen
+  class NoteEditScreen
+}
+
+' --- State / Logic ---
+package "State / Logic" {
+  class NoteViewModel
+}
+
+' --- Repository Layer ---
+package "Repository Layer" {
+  class PageRepository {
+    +Future<List<Page>> getPages()
+    +Future<void> savePage(Page page)
+    +Future<void> deletePage(String id)
+  }
+}
+
+' --- Firebase Services ---
+package "Firebase" {
+  class FirebaseFirestore
+  class FirebaseStorage
+  class FirebaseAuth
+}
+
+' --- Domain Model ---
+package "Domain Model" {
+  class Page {
+    String id
+    String title
+    DateTime lastEdited
+    List<Block> blocks
+  }
+
+  class Block {
+    String type
+    dynamic content
+  }
+}
+
+' --- Relationships ---
+NotePageScreen --> NoteViewModel
+NoteEditScreen --> NoteViewModel
+
+NoteViewModel --> PageRepository
+
+PageRepository --> FirebaseFirestore
+PageRepository --> FirebaseStorage
+NoteViewModel --> FirebaseAuth : checkLogin()
+
+Page "1" *-- "many" Block
+
+@enduml
