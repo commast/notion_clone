@@ -5,11 +5,13 @@ import 'page_screen.dart';
 class SearchScreen extends StatefulWidget {
   final List<PageData> allPages;
   final Function(BuildContext) onNewPage;
+  final void Function(PageData)? onPageChanged;
 
   const SearchScreen({
     super.key,
     required this.allPages,
     required this.onNewPage,
+    this.onPageChanged,
   });
 
   @override
@@ -246,7 +248,7 @@ class _SearchScreenState extends State<SearchScreen> {
         builder: (_) => NotionPageScreen(
           page: page,
           onNewPage: () => widget.onNewPage(context),
-          onPageChanged: () => setState(() {}),
+          onPageChanged: (updatedPage) => setState(() {}),
           onFavoriteToggle: (p) => setState(() {}),
           onDuplicate: (p) {},
           onMove: (p) {},

@@ -240,64 +240,81 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
   }
   
   void _openPage(PageData page) {
-    _updateRecentPages(page);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => NotionPageScreen(
-          page: page,
-          onNewPage: () => _createNewPageAndOpen(context),
-          onPageChanged: () {
-            // 홈에서 _personalPages 트리 전체를 돌면서 같은 id 페이지 동기화
+  // 페이지를 열 때 바로 최근 방문 목록 갱신
+  _updateRecentPages(page);
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => NotionPageScreen(
+        page: page,
+        onNewPage: () => _createNewPageAndOpen(context),
+
+        // ✅ 페이지 안에서 제목/내용이 변경될 때마다 호출됨
+        onPageChanged: (updatedPage) {
+          // 1) 홈에서 _personalPages 트리 전체를 돌면서 같은 id 페이지 동기화
+          final Map<String, PageData> allMap = {};
+          for (var root in _personalPages) {
+            _collectPagesRecursively(root, allMap);
+          }
+
+          final target = allMap[page.id];
+
+          if (target != null) {
+            // 트리 구조 동기화
+            setState(() {
+              target.title = page.title;
+              target.lastEdited = page.lastEdited;
+            });
+
+            // ✅ 최근 방문 페이지도 즉시 갱신
+            _updateRecentPages(target);
+          } else {
+            // 혹시 못 찾으면 그냥 리빌드 + 최근 방문 갱신
+            setState(() {});
+            _updateRecentPages(page);
+          }
+        },
+
+        onFavoriteToggle: _toggleFavorite,
+        onDuplicate: _duplicatePage,
+        onMove: (p) => _showMovePageDialog(p),
+        onDelete: (p) => _confirmDeletePage(p).then((deleted) {
+          if (deleted && mounted) Navigator.pop(context);
+        }),
+        allPages: _personalPages,
+        onPageCreated: (newPage) {
+          setState(() {
+            // 1) 전체 트리에서 부모 찾기
             final Map<String, PageData> allMap = {};
             for (var root in _personalPages) {
               _collectPagesRecursively(root, allMap);
             }
 
-            final target = allMap[page.id];
-            if (target != null) {
-              setState(() {
-                target.title = page.title;
-                target.lastEdited = page.lastEdited;
-              });
+            if (newPage.parentId != null &&
+                newPage.parentId!.isNotEmpty &&
+                allMap.containsKey(newPage.parentId!)) {
+              final parent = allMap[newPage.parentId!]!;
+              newPage.parentPage = parent;
+              parent.subPages.add(newPage);
+              parent.isExpanded = true;
             } else {
-              setState(() {}); // 혹시 못 찾으면 그냥 리빌드만
+              // 부모 못 찾으면 루트로 추가 (안전장치)
+              _personalPages.insert(0, newPage);
             }
-          },
-          onFavoriteToggle: _toggleFavorite,
-          onDuplicate: _duplicatePage,
-          onMove: (p) => _showMovePageDialog(p),
-          onDelete: (p) => _confirmDeletePage(p).then((deleted) {
-            if (deleted && mounted) Navigator.pop(context);
-          }),
-          allPages: _personalPages,
-          onPageCreated: (newPage) {
-            setState(() {
-              // 1) 전체 트리에서 부모 찾기
-              final Map<String, PageData> allMap = {};
-              for (var root in _personalPages) {
-                _collectPagesRecursively(root, allMap);
-              }
+          });
 
-              if (newPage.parentId != null &&
-                  newPage.parentId!.isNotEmpty &&
-                  allMap.containsKey(newPage.parentId!)) {
-                final parent = allMap[newPage.parentId!]!;
-                newPage.parentPage = parent;
-                parent.subPages.add(newPage);
-                parent.isExpanded = true;
-              } else {
-                // 부모 못 찾으면 루트로 추가 (안전장치)
-                _personalPages.insert(0, newPage);
-              }
-            });
-          },
-        ),
+          // 새 페이지도 최근 방문에 반영하고 싶으면 여기에서 호출 가능
+          // _updateRecentPages(newPage);
+        },
       ),
-    ).then((_) {
-      if (mounted) setState(() {});
-    });
-  }
+    ),
+  ).then((_) {
+    if (mounted) setState(() {});
+  });
+}
+
+
 
 
   void _updateRecentPages(PageData page) {
@@ -907,7 +924,6 @@ Future<void> _refreshPagesAfterTrash() async {
       
       bottomSheet: NotionBottomBar(
         onHome: () {
-          // 이미 홈이니까 아무 것도 안 해도 되거나, 상단 스크롤 등 처리
         },
         onNewPage: () => _createNewPageAndOpen(context),
         onSearch: _openSearch,
