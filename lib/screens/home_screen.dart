@@ -250,7 +250,7 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         page: page,
         onNewPage: () => _createNewPageAndOpen(context),
 
-        // ✅ 페이지 안에서 제목/내용이 변경될 때마다 호출됨
+        // 페이지 안에서 제목/내용이 변경될 때마다 호출됨
         onPageChanged: (updatedPage) {
           // 1) 홈에서 _personalPages 트리 전체를 돌면서 같은 id 페이지 동기화
           final Map<String, PageData> allMap = {};
@@ -258,21 +258,22 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
             _collectPagesRecursively(root, allMap);
           }
 
-          final target = allMap[page.id];
+          final target = allMap[updatedPage.id];
 
           if (target != null) {
             // 트리 구조 동기화
             setState(() {
-              target.title = page.title;
-              target.lastEdited = page.lastEdited;
+              target.title = updatedPage.title;
+              target.lastEdited = updatedPage.lastEdited;
+              target.teamSpaceId = updatedPage.teamSpaceId; 
             });
 
-            // ✅ 최근 방문 페이지도 즉시 갱신
+            // 최근 방문 페이지도 즉시 갱신
             _updateRecentPages(target);
           } else {
             // 혹시 못 찾으면 그냥 리빌드 + 최근 방문 갱신
             setState(() {});
-            _updateRecentPages(page);
+            _updateRecentPages(updatedPage);
           }
         },
 

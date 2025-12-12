@@ -928,6 +928,11 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   );
                   debugPrint('promotePageToTeam done (invite)');
 
+                  widget.page.teamSpaceId = teamSpaceId ?? 'some-team-id'; // 실제 값으로 세팅
+                  if (widget.onPageChanged != null) {
+                    widget.onPageChanged!(widget.page);  // updatedPage 넘기기
+                  }
+
                   if (mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -968,12 +973,14 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       return;
     }
 
+    final allPagesFlat = _getAllPages();
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: _PageNavigationDialog(
-          allPages: widget.allPages!,
+          allPages: allPagesFlat,
           currentPage: widget.page,
           onPageSelected: (selectedPage) {
             Navigator.pop(context);
