@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../repositories/page_repository.dart';
-
+import '../screens/search_screen.dart';
 import '../data/page_data.dart';
 import '../utils/font_provider.dart';
 
@@ -73,6 +73,41 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   PageRepository? _repository;
 
   bool get canUndo => _undoStack.isNotEmpty;
+
+  Future<void> _createSubPageAndOpen() async {
+    final repository = Provider.of<PageRepository>(context, listen: false);
+    final newPage = PageData(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: '제목 없음',
+      lastEdited: DateTime.now(),
+      parentId: widget.page.id,   // 현재 페이지를 부모로
+      parentPage: widget.page,
+    );
+
+    try {
+      await repository.createPage(newPage);
+
+      final defaultBlocks = [
+        BlockData(type: 'title', content: newPage.title),
+        BlockData(type: 'text', content: ''),
+      ];
+      await repository.saveBlocks(newPage.id, defaultBlocks);
+      savePageBlocks(newPage.id, defaultBlocks);
+
+      if (widget.onPageCreated != null) {
+        widget.onPageCreated!(newPage);
+      }
+
+      _openPage(newPage);  // 새 페이지로 이동
+    } catch (e) {
+      debugPrint('하위 페이지 생성 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('페이지 생성 실패: $e')));
+      }
+    }
+  }
+
 
   void _showBlockMenu(int index) {
     if (index < 0 || index >= _currentBlocks.length) return;
@@ -575,6 +610,8 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           id: newPageId,
           title: newPageTitle,
           lastEdited: DateTime.now(),
+          parentId: widget.page.id,
+          parentPage: widget.page,
         );
 
         final repository = Provider.of<PageRepository>(context, listen: false);
@@ -1400,20 +1437,40 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   final contentStr = block.content as String;
                   final parts = contentStr.split('|');
                   final pageId = parts[0];
-                  final pageTitle = parts.length > 1 ? parts[1] : '제목 없음';
+
+                  // 항상 최신 PageData에서 제목을 찾기
+                  String pageTitle = '제목 없음';
+
+                  if (widget.allPages != null) {
+                    try {
+                      // 트리 전체에서 해당 id 페이지 찾기
+                      final allPages = _getAllPages(); // 이미 위에 정의된 헬퍼
+                      final target = allPages.firstWhere((p) => p.id == pageId);
+                      pageTitle = target.title; // 최신 제목
+                    } catch (_) {
+                      // 못 찾으면 기존 content 안의 제목 사용
+                      if (parts.length > 1 && parts[1].isNotEmpty) {
+                        pageTitle = parts[1];
+                      }
+                    }
+                  } else {
+                    // allPages가 없을 때는 기존 방식 유지
+                    if (parts.length > 1 && parts[1].isNotEmpty) {
+                      pageTitle = parts[1];
+                    }
+                  }
 
                   blockWidget = PageLinkBlock(
                     key: ValueKey(block),
                     pageTitle: pageTitle,
-                    onTap: () {
+                     onTap: () {
+                      // 항상 트리 전체에서 검색
+                      final allPages = _getAllPages();
                       PageData? targetPage;
-                      if (widget.allPages != null) {
-                        for (var p in widget.allPages!) {
-                          if (p.id == pageId) {
-                            targetPage = p;
-                            break;
-                          }
-                        }
+                      try {
+                        targetPage = allPages.firstWhere((p) => p.id == pageId);
+                      } catch (_) {
+                        targetPage = null;
                       }
 
                       if (targetPage != null) {
@@ -1441,6 +1498,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
+
 
                 case 'code':
                   blockWidget = CodeBlock(
@@ -1604,7 +1662,21 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
               canUndo: canUndo,
             )
           else
-            NotionBottomBar(onNewPage: widget.onNewPage),
+            NotionBottomBar(
+              onHome: () => Navigator.pop(context),
+              onSearch: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SearchScreen(
+                      allPages: widget.allPages ?? [],
+                      onNewPage: (ctx) => _createSubPageAndOpen(),
+                    ),
+                  ),
+                );
+              },
+              onNewPage: _createSubPageAndOpen,
+            ),
         ],
       ),
 
@@ -1613,7 +1685,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           : Padding(
               padding: EdgeInsets.only(bottom: bottomBarHeight + 10),
               child: FloatingActionButton(
-                onPressed: widget.onNewPage,
+                onPressed: _createSubPageAndOpen, 
                 backgroundColor: Colors.white,
                 shape: const CircleBorder(),
                 elevation: 6.0,

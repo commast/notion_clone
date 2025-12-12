@@ -239,7 +239,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
     }
   }
   
-  // 페이지 열기
   void _openPage(PageData page) {
     _updateRecentPages(page);
     Navigator.push(
@@ -248,21 +247,58 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
         builder: (_) => NotionPageScreen(
           page: page,
           onNewPage: () => _createNewPageAndOpen(context),
-          onPageChanged: () => setState(() {}),
+          onPageChanged: () {
+            // 홈에서 _personalPages 트리 전체를 돌면서 같은 id 페이지 동기화
+            final Map<String, PageData> allMap = {};
+            for (var root in _personalPages) {
+              _collectPagesRecursively(root, allMap);
+            }
+
+            final target = allMap[page.id];
+            if (target != null) {
+              setState(() {
+                target.title = page.title;
+                target.lastEdited = page.lastEdited;
+              });
+            } else {
+              setState(() {}); // 혹시 못 찾으면 그냥 리빌드만
+            }
+          },
           onFavoriteToggle: _toggleFavorite,
           onDuplicate: _duplicatePage,
           onMove: (p) => _showMovePageDialog(p),
           onDelete: (p) => _confirmDeletePage(p).then((deleted) {
-             if (deleted && mounted) Navigator.pop(context);
+            if (deleted && mounted) Navigator.pop(context);
           }),
           allPages: _personalPages,
-          onPageCreated: (newPage) => setState(() => _personalPages.insert(0, newPage)),
+          onPageCreated: (newPage) {
+            setState(() {
+              // 1) 전체 트리에서 부모 찾기
+              final Map<String, PageData> allMap = {};
+              for (var root in _personalPages) {
+                _collectPagesRecursively(root, allMap);
+              }
+
+              if (newPage.parentId != null &&
+                  newPage.parentId!.isNotEmpty &&
+                  allMap.containsKey(newPage.parentId!)) {
+                final parent = allMap[newPage.parentId!]!;
+                newPage.parentPage = parent;
+                parent.subPages.add(newPage);
+                parent.isExpanded = true;
+              } else {
+                // 부모 못 찾으면 루트로 추가 (안전장치)
+                _personalPages.insert(0, newPage);
+              }
+            });
+          },
         ),
       ),
     ).then((_) {
-       if (mounted) setState(() {});
+      if (mounted) setState(() {});
     });
   }
+
 
   void _updateRecentPages(PageData page) {
     setState(() {
@@ -870,6 +906,9 @@ Future<void> _refreshPagesAfterTrash() async {
       ),
       
       bottomSheet: NotionBottomBar(
+        onHome: () {
+          // 이미 홈이니까 아무 것도 안 해도 되거나, 상단 스크롤 등 처리
+        },
         onNewPage: () => _createNewPageAndOpen(context),
         onSearch: _openSearch,
       ),

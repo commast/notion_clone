@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class NotionBottomBar extends StatelessWidget {
   final VoidCallback? onNewPage;
   final VoidCallback? onSearch;
+  final VoidCallback? onHome;
 
   const NotionBottomBar({
     super.key,
     this.onNewPage,
     this.onSearch,
+    this.onHome,
   });
 
   @override
@@ -23,7 +25,7 @@ class NotionBottomBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildBarItem(Icons.home, '홈', () {}),
+            _buildBarItem(Icons.home, '홈', onHome),
             _buildBarItem(Icons.search, '검색', onSearch),
             _buildBarItem(Icons.add_box_outlined, '새 페이지', onNewPage),
           ],
