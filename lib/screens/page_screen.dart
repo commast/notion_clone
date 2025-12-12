@@ -74,6 +74,65 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
   bool get canUndo => _undoStack.isNotEmpty;
 
+  void _showBlockMenu(int index) {
+    if (index < 0 || index >= _currentBlocks.length) return;
+
+    final block = _currentBlocks[index];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('복제'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _saveState();
+
+                  final original = _currentBlocks[index];
+                  final duplicated = BlockData(
+                    type: original.type,
+                    content: _copyContent(original.content),
+                    textColor: original.textColor,
+                    backgroundColor: original.backgroundColor,
+                    targetPageId: original.targetPageId,
+                    linkedPageId: original.linkedPageId,
+                  );
+
+                  setState(() {
+                    _currentBlocks.insert(index + 1, duplicated);
+                  });
+                },
+              ),
+              const Divider(height: 0),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _saveState();
+                  setState(() {
+                    _currentBlocks.removeAt(index);
+                  });
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   List<PageData> _getAllPages() {
     final roots = widget.allPages ?? [];
     final result = <PageData>[];
@@ -604,7 +663,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
       case '막대 차트':
         setState(() {
-          _currentBlocks.add(BlockData(type: 'chart', content: null));
+          _currentBlocks.add(
+            BlockData(
+              type: 'chart',
+              // 🔹 처음엔 비어 있는 리스트만 저장 (차트 위젯이 기본 예시 데이터를 채움)
+              content: <Map<String, dynamic>>[],
+            ),
+          );
         });
         break;
 
@@ -1390,42 +1455,61 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   break;
 
                 case 'chart':
-                  final raw = (block.content as List?) ?? [];
-                  final data = raw.map((e) {
-                    final map = Map<String, dynamic>.from(e as Map);
-                    final colorVal = map['color'];
-                    map['color'] = colorVal is int ? Color(colorVal) : colorVal;
-                    return map;
-                  }).toList();
+                  // 🔹 예전 데이터까지 안전하게 처리 (null, String, Map, List 모두)
+                  final dynamic rawContent = block.content;
 
-                  blockWidget = NotionChart(
-                    key: ValueKey(block),
-                    initialData: data,
-                    onChanged: (serializedData) {
-                      setState(() {
-                        block.content = serializedData; // Color 없는 JSON으로만 저장
-                      });
-                    },
+                  final List<Map<String, dynamic>> data = [];
+
+                  if (rawContent is List) {
+                    // 정상 케이스: 이미 리스트 형태로 저장된 경우
+                    for (final item in rawContent) {
+                      if (item is Map) {
+                        final map = Map<String, dynamic>.from(item);
+                        final colorVal = map['color'];
+
+                        // color가 int면 Color로 복원
+                        if (colorVal is int) {
+                          map['color'] = Color(colorVal);
+                        }
+
+                        data.add(map);
+                      }
+                    }
+                  } else {
+                    // 🔸 예전 데이터(예: "", null 등)는 그냥 빈 데이터로 처리
+                    // -> NotionChart가 기본 더미 데이터로 채워줌
+                  }
+
+                  blockWidget = GestureDetector(
+                    onLongPress: () => _showBlockMenu(index),
+                    child: NotionChart(
+                      key: ValueKey(block),
+                      initialData: data,
+                      onChanged: (serializedData) {
+                        setState(() {
+                          block.content = serializedData; // 항상 List<Map> 로 덮어쓰기
+                        });
+                      },
+                    ),
                   );
                   break;
 
                 case 'table':
                   final Map<String, dynamic> tableData =
                       (block.content as Map?)?.cast<String, dynamic>() ??
-                      {
-                        'rows': 3,
-                        'cols': 3,
-                        'cells': <String, String>{}, // 처음엔 빈 Map
-                      };
+                      {'rows': 3, 'cols': 3, 'cells': <String, String>{}};
 
-                  blockWidget = NotionTable(
-                    key: ValueKey(block),
-                    data: tableData,
-                    onChanged: (newData) {
-                      setState(() {
-                        block.content = newData; // rows, cols, cells 저장
-                      });
-                    },
+                  blockWidget = GestureDetector(
+                    onLongPress: () => _showBlockMenu(index),
+                    child: NotionTable(
+                      key: ValueKey(block),
+                      data: tableData,
+                      onChanged: (newData) {
+                        setState(() {
+                          block.content = newData;
+                        });
+                      },
+                    ),
                   );
                   break;
 

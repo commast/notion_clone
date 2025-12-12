@@ -132,9 +132,30 @@ class PageRepository {
   Future<void> saveBlocks(String pageId, List<BlockData> blocks) async {
     try {
       final blocksJson = blocks.map((block) {
+        dynamic content;
+
+        if (block.type == 'chart') {
+          // 차트 블록은 항목별로 안전하게 직렬화 (label, value, color, chartTitle)
+          final List<dynamic> items = (block.content as List?) ?? const [];
+
+          content = items.map((e) {
+            final map = Map<String, dynamic>.from(e as Map);
+            final colorVal = map['color'];
+
+            return {
+              'label': map['label'],
+              'value': map['value'],
+              'color': colorVal is Color ? colorVal.value : colorVal,
+              if (map['chartTitle'] != null) 'chartTitle': map['chartTitle'],
+            };
+          }).toList();
+        } else {
+          content = block.content;
+        }
+
         return {
           'type': block.type,
-          'content': block.content,
+          'content': content, // ✅ 여기 꼭 content!
           'textColor': block.textColor?.value,
           'backgroundColor': block.backgroundColor?.value,
           'targetPageId': block.targetPageId,
