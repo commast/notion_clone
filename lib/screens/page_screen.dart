@@ -1005,9 +1005,6 @@ Widget build(BuildContext context) {
   final bool isKeyboardVisible = keyboardHeight > 0;
   final double bottomBarHeight = 50.0 + MediaQuery.of(context).padding.bottom;
 
-  final previousPage = _previousPage;
-  final nextPage = _nextPage;
-  final bool hasNavigation = previousPage != null || nextPage != null;
 
   if (_isLoading) {
     return Scaffold(
@@ -1061,7 +1058,6 @@ Widget build(BuildContext context) {
           padding: EdgeInsets.only(
             left: 16.0,
             right: 16.0,
-            bottom: hasNavigation ? 70 : 0,
           ),
           itemCount: _currentBlocks.length + 1,
           itemBuilder: (context, index) {
@@ -1650,35 +1646,7 @@ Widget build(BuildContext context) {
             },
           ),
 
-          // 페이지 네비게이션 버튼
-          if (hasNavigation && !isKeyboardVisible)
-            Positioned(
-              right: 16,
-              bottom: bottomBarHeight + 70,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (previousPage != null)
-                    _NavigationButton(
-                      icon: Icons.arrow_upward,
-                      label: '이전',
-                      pageTitle: previousPage.title,
-                      onPressed: () => _navigateToPage(previousPage),
-                    ),
-
-                  if (previousPage != null && nextPage != null)
-                    const SizedBox(height: 8),
-
-                  if (nextPage != null)
-                    _NavigationButton(
-                      icon: Icons.arrow_downward,
-                      label: '다음',
-                      pageTitle: nextPage.title,
-                      onPressed: () => _navigateToPage(nextPage),
-                    ),
-                ],
-              ),
-            ),
+          
         ],
       ),
 
@@ -1716,75 +1684,6 @@ Widget build(BuildContext context) {
  }
 }
 
-
-// 페이지 네비게이션 버튼 위젯
-class _NavigationButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String pageTitle;
-  final VoidCallback onPressed;
-
-  const _NavigationButton({
-    required this.icon,
-    required this.label,
-    required this.pageTitle,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: Colors.blue),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      pageTitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // 나머지 Dialog 클래스들
 class _PageNavigationDialog extends StatefulWidget {
