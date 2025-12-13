@@ -414,20 +414,17 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _deleteCurrentLine() {
-    if (_currentFocusedBlockIndex >= 0 &&
-        _currentFocusedBlockIndex < _currentBlocks.length) {
-      _saveState();
-      setState(() {
-        final block = _currentBlocks[_currentFocusedBlockIndex];
-        _currentBlocks[_currentFocusedBlockIndex] = BlockData(
-          type: 'text',
-          content: '',
-          textColor: block.textColor,
-          backgroundColor: block.backgroundColor,
-        );
-      });
-    }
+  if (_currentFocusedBlockIndex >= 0 &&
+      _currentFocusedBlockIndex < _currentBlocks.length) {
+    _saveState(); // 실행 취소(Undo)를 위해 상태 저장
+    setState(() {
+      
+      _currentBlocks.removeAt(_currentFocusedBlockIndex);
+      _currentFocusedBlockIndex = -1; 
+      FocusScope.of(context).unfocus();
+    });
   }
+}
 
   void _showColorPicker() {
     if (_currentFocusedBlockIndex < 0 ||
@@ -527,36 +524,52 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _addBlock(String blockType) async {
+    //삽입할 위치 계산
+  int insertIndex = _currentBlocks.length;
+  if (_currentFocusedBlockIndex >= 0 && 
+      _currentFocusedBlockIndex < _currentBlocks.length) {
+    insertIndex = _currentFocusedBlockIndex + 1;
+  }
+
+  //중복 코드를 줄이는 내부 함수 생성 
+ void insertNewBlock(BlockData newBlock) {
+    setState(() {
+      
+      if (insertIndex > _currentBlocks.length) insertIndex = _currentBlocks.length;
+      _currentBlocks.insert(insertIndex, newBlock);
+      _currentFocusedBlockIndex = insertIndex;
+    });
+  }
     _saveState();
 
     switch (blockType) {
       case 'text':
         setState(() {
-          _currentBlocks.add(BlockData(type: 'text', content: ''));
+          insertNewBlock(BlockData(type: 'text', content: ''));
         });
         break;
 
       case 'heading1':
         setState(() {
-          _currentBlocks.add(BlockData(type: 'heading1', content: ''));
+          insertNewBlock(BlockData(type: 'heading1', content: ''));
         });
         break;
 
       case 'heading2':
         setState(() {
-          _currentBlocks.add(BlockData(type: 'heading2', content: ''));
+          insertNewBlock(BlockData(type: 'heading2', content: ''));
         });
         break;
 
       case 'heading3':
         setState(() {
-          _currentBlocks.add(BlockData(type: 'heading3', content: ''));
+          insertNewBlock(BlockData(type: 'heading3', content: ''));
         });
         break;
 
       case 'bulleted_list':
         setState(() {
-          _currentBlocks.add(BlockData(type: 'bulleted_list', content: ''));
+          insertNewBlock(BlockData(type: 'bulleted_list', content: ''));
         });
         break;
 
@@ -571,36 +584,30 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             }
           }
         }
-        setState(() {
-          _currentBlocks.add(
-            BlockData(
-              type: 'numbered_list',
-              content: {'number': nextNumber, 'text': ''},
-            ),
-          );
-        });
+        insertNewBlock(
+          BlockData(
+            type: 'numbered_list',
+            content: {'number': nextNumber, 'text': ''},
+          ),
+        );
         break;
 
       case 'todo_list':
-        setState(() {
-          _currentBlocks.add(
-            BlockData(
-              type: 'todo_list',
-              content: {'checked': false, 'text': ''},
-            ),
-          );
-        });
+        insertNewBlock(
+          BlockData(
+            type: 'todo_list',
+            content: {'checked': false, 'text': ''},
+          ),
+        );
         break;
 
       case 'toggle_list':
-        setState(() {
-          _currentBlocks.add(
-            BlockData(
-              type: 'toggle_list',
-              content: {'title': '', 'content': ''},
-            ),
-          );
-        });
+        insertNewBlock(
+          BlockData(
+            type: 'toggle_list',
+            content: {'title': '', 'content': ''},
+          ),
+        );
         break;
 
       case 'page':
@@ -634,11 +641,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             widget.onPageCreated!(newPage);
           }
 
-          setState(() {
-            _currentBlocks.add(
-              BlockData(type: 'page', content: '$newPageId|$newPageTitle'),
-            );
-          });
+          
+          insertNewBlock(
+            BlockData(type: 'page', content: '$newPageId|$newPageTitle'),
+          );
         } catch (e) {
           debugPrint('하위 페이지 생성 실패: $e');
 
@@ -651,21 +657,15 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         break;
 
       case 'callout':
-        setState(() {
-          _currentBlocks.add(BlockData(type: 'callout', content: ''));
-        });
+        insertNewBlock(BlockData(type: 'callout', content: ''));
         break;
 
       case 'quote':
-        setState(() {
-          _currentBlocks.add(BlockData(type: 'quote', content: ''));
-        });
+        insertNewBlock(BlockData(type: 'quote', content: ''));
         break;
 
       case 'divider':
-        setState(() {
-          _currentBlocks.add(BlockData(type: 'divider', content: null));
-        });
+        insertNewBlock(BlockData(type: 'divider', content: null));
         break;
 
       case '표':
@@ -678,14 +678,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             return TableSizeSelectorModal(
               onTableCreated: (rows, cols) {
                 _saveState();
-                setState(() {
-                  _currentBlocks.add(
-                    BlockData(
-                      type: 'table',
-                      content: {'rows': rows, 'cols': cols},
-                    ),
-                  );
-                });
+                // [수정] insertNewBlock 사용
+                insertNewBlock(
+                  BlockData(
+                    type: 'table',
+                    content: {'rows': rows, 'cols': cols},
+                  ),
+                );
                 Navigator.pop(context);
               },
             );
@@ -694,21 +693,17 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         return;
 
       case '코드':
-        setState(() {
-          _currentBlocks.add(BlockData(type: 'code', content: ''));
-        });
+        insertNewBlock(BlockData(type: 'code', content: ''));
         break;
 
       case '막대 차트':
-        setState(() {
-          _currentBlocks.add(
-            BlockData(
-              type: 'chart',
-              // 🔹 처음엔 비어 있는 리스트만 저장 (차트 위젯이 기본 예시 데이터를 채움)
-              content: <Map<String, dynamic>>[],
-            ),
-          );
-        });
+        insertNewBlock(
+          BlockData(
+            type: 'chart',
+            // 🔹 처음엔 비어 있는 리스트만 저장 (차트 위젯이 기본 예시 데이터를 채움)
+            content: <Map<String, dynamic>>[],
+          ),
+        );
         break;
 
       case 'page_link':
@@ -730,19 +725,16 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
         if (selectedPage == null) break;
 
-        // 2) 링크 블록 추가
-        setState(() {
-          _currentBlocks.add(
-            BlockData(
-              type: 'page_link',
-              content: selectedPage.title,
-              linkedPageId: selectedPage.id,
-              targetPageId: selectedPage.id,
-            ),
-          );
-        });
+        // 2) [수정] 링크 블록 추가 (insertNewBlock 사용)
+        insertNewBlock(
+          BlockData(
+            type: 'page_link',
+            content: selectedPage.title,
+            linkedPageId: selectedPage.id,
+            targetPageId: selectedPage.id,
+          ),
+        );
         break;
-
       default:
         setState(() {
           _currentBlocks.add(BlockData(type: 'text', content: ''));
