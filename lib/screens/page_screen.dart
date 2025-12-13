@@ -1606,11 +1606,47 @@ Widget build(BuildContext context) {
                 default:
                   blockWidget = const SizedBox.shrink();
               }
+              return GestureDetector(
+              behavior: HitTestBehavior.translucent, 
+              onLongPress: () {
+                // 꾹 눌렀을 때 메뉴 실행
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) {
+                    return SafeArea(
+                      child: Wrap(
+                        children: [
+                          ListTile(
+                            leading: Icon(Icons.delete, color: Colors.red),
+                            title: Text('삭제하기', style: TextStyle(color: Colors.red)),
+                            onTap: () {
+                              Navigator.pop(context); // 메뉴 닫기
+                              
+                              // [삭제 로직]
+                              setState(() {
+                                // 1. 데이터 리스트에서 삭제
+                                _currentBlocks.removeAt(index);
+                                
+                                
+                               
+                              });
+                            },
+                          ),
+                          
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+              // 실제 화면에 그려지는 부분
+              child: Container(
+                // 블록 간 간격 조절
+                margin: const EdgeInsets.symmetric(vertical: 2.0), 
+                child: blockWidget, 
+              ),
+            );
 
-              return Container(
-                color: block.backgroundColor ?? Colors.transparent,
-                child: blockWidget,
-              );
             },
           ),
 
