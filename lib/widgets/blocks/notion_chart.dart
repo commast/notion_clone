@@ -30,11 +30,18 @@ class _NotionChartState extends State<NotionChart> {
   void initState() {
     super.initState();
     if (widget.initialData.isNotEmpty) {
-      _data = widget.initialData
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      
+      _data = widget.initialData.map((e) {
+        final map = Map<String, dynamic>.from(e);
+        
+        
+        if (map['color'] is int) {
+          map['color'] = Color(map['color']);
+        }
+        return map;
+      }).toList();
     } else {
-      // ✅ 기본 데이터에도 chartTitle 추가
+      // 기본 데이터
       _data = [
         {
           'label': '1분기',
@@ -62,13 +69,9 @@ class _NotionChartState extends State<NotionChart> {
         },
       ];
     }
+    
+    
     _titleController = TextEditingController(text: _chartTitle);
-
-    @override
-    void dispose() {
-      _titleController.dispose();
-      super.dispose();
-    }
   }
 
   void _updateChartData(List<Map<String, dynamic>> newData) {
