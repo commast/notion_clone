@@ -75,6 +75,40 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
   bool get canUndo => _undoStack.isNotEmpty;
 
+  Future<List<String>> _getTeamMemberUids(String teamSpaceId) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('teamMembers')
+        .where('teamSpaceId', isEqualTo: teamSpaceId)
+        .get();
+
+    return snap.docs
+        .map((d) => (d.data()['userUid'] ?? '').toString())
+        .where((uid) => uid.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> _sharePageToCurrentTeam(PageData targetPage) async {
+    final currentTeamSpaceId = widget.page.teamSpaceId;
+    if (currentTeamSpaceId == null) return;
+
+    final repo = Provider.of<PageRepository>(context, listen: false);
+
+    // 현재 팀스페이스의 멤버 목록 가져오기
+    final memberUids = await _getTeamMemberUids(currentTeamSpaceId);
+
+    // ✅ 링크 대상 페이지를 "현재 팀스페이스" 소속으로 맞추기
+    await FirebaseFirestore.instance
+        .collection('pages')
+        .doc(targetPage.id)
+        .update({'teamSpaceId': currentTeamSpaceId});
+
+    // ✅ 기존 공유 로직(멤버 권한 부여)
+    await repo.promotePageToTeam(pageId: targetPage.id, memberUids: memberUids);
+
+    // 로컬 객체도 반영
+    targetPage.teamSpaceId = currentTeamSpaceId;
+  }
+
   Future<void> _createSubPageAndOpen() async {
     final repository = Provider.of<PageRepository>(context, listen: false);
     final newPage = PageData(
@@ -718,7 +752,63 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
         if (selectedPage == null) break;
 
-        // 2) [수정] 링크 블록 추가 (insertNewBlock 사용)
+        // ✅ 현재 페이지가 "공유(팀) 페이지"인지 확인
+        final String? currentTeamSpaceId = widget.page.teamSpaceId;
+        final bool isTeamPage = currentTeamSpaceId != null;
+
+        if (isTeamPage) {
+          final bool selectedAlreadySharedToSameTeam =
+              (selectedPage.teamSpaceId != null &&
+              selectedPage.teamSpaceId == currentTeamSpaceId);
+
+          // 링크 대상이 아직 팀에 공유되지 않았으면 "같이 공유" 옵션 띄우기
+          if (!selectedAlreadySharedToSameTeam) {
+            final action = await showDialog<String>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('링크 페이지 공유'),
+                content: const Text(
+                  '이 페이지는 아직 팀에 공유되지 않았습니다.\n'
+                  '팀원들도 링크를 열 수 있게 하려면\n'
+                  '이 페이지도 같이 공유해야 합니다.\n\n'
+                  '지금 같이 공유할까요?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, 'cancel'),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, 'link_only'),
+                    child: const Text('링크만 추가'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, 'share_and_link'),
+                    child: const Text('공유하고 링크'),
+                  ),
+                ],
+              ),
+            );
+
+            if (action == 'cancel' || action == null) break;
+
+            if (action == 'share_and_link') {
+              try {
+                await _sharePageToCurrentTeam(selectedPage);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('공유 실패: $e')));
+                }
+                break;
+              }
+            }
+            // link_only면 그냥 링크는 추가되지만, 팀원은 못 열 수 있음
+          }
+        }
+
+        // 2) 링크 블록 추가
         insertNewBlock(
           BlockData(
             type: 'page_link',
@@ -728,6 +818,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
           ),
         );
         break;
+
       default:
         setState(() {
           _currentBlocks.add(BlockData(type: 'text', content: ''));

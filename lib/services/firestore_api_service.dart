@@ -247,12 +247,13 @@ class FirestoreApiService implements ApiService {
       });
 
       // 팀 소유자 멤버 등록
-      batch.set(membersCol.doc(), {
+      final ownerMemberRef = membersCol.doc('${teamSpaceId}_$ownerUid');
+      batch.set(ownerMemberRef, {
         'teamSpaceId': teamSpaceId,
         'userUid': ownerUid,
         'role': 'owner',
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
       // 페이지에 teamSpaceId 연결
       batch.update(pageRef, {'teamSpaceId': teamSpaceId});
@@ -262,16 +263,90 @@ class FirestoreApiService implements ApiService {
     final uniqueMemberUids = memberUids.toSet()..remove(ownerUid);
 
     for (final uid in uniqueMemberUids) {
-      batch.set(membersCol.doc(), {
+      final ref = membersCol.doc('${teamSpaceId}_$uid');
+      batch.set(ref, {
         'teamSpaceId': teamSpaceId,
         'userUid': uid,
         'role': 'editor',
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
     debugPrint('promotePageToTeam committed (teamSpaceId=$teamSpaceId)');
+  }
+
+  Future<void> sharePageToExistingTeam({
+    required String pageId,
+    required String teamSpaceId,
+    required String actingUid,
+    required List<String> memberUids,
+  }) async {
+    debugPrint(
+      'sharePageToExistingTeam start: pageId=$pageId, teamSpaceId=$teamSpaceId, actingUid=$actingUid, members=$memberUids',
+    );
+
+    final pageRef = _firestore.collection('pages').doc(pageId);
+
+    // 1) 페이지 존재 + 권한 체크용으로 읽기
+    final pageSnap = await pageRef.get();
+    if (!pageSnap.exists) {
+      throw Exception('페이지를 찾을 수 없습니다: $pageId');
+    }
+
+    final pageData = pageSnap.data() as Map<String, dynamic>;
+
+    // ✅ 너 스키마에서 "소유자" 필드는 userId
+    final String? ownerUid = pageData['userId'] as String?;
+
+    // 2) 권한 체크 (최소 안전장치)
+    // - 링크 페이지를 "같이 공유" 하려면 적어도 실행자가 그 페이지를 공유할 권한이 있어야 함
+    // - 너의 현재 규칙(휴지통/삭제 등)도 owner만 가능하게 되어있으니 여기서도 owner만 허용하는게 일관적
+    if (ownerUid == null || ownerUid != actingUid) {
+      throw Exception('이 페이지를 팀에 공유할 권한이 없습니다.');
+    }
+
+    // 3) teamSpaceId를 기존 팀으로 "붙이기"
+    // 이미 다른 팀에 속한 페이지면 막는게 안전 (원하면 정책 바꿀 수 있음)
+    final String? currentTeam = pageData['teamSpaceId'] as String?;
+    if (currentTeam != null &&
+        currentTeam.isNotEmpty &&
+        currentTeam != teamSpaceId) {
+      throw Exception('이미 다른 팀에 공유된 페이지입니다. (teamSpaceId=$currentTeam)');
+    }
+
+    final batch = _firestore.batch();
+    final membersCol = _firestore.collection('teamMembers');
+
+    // 페이지 업데이트
+    batch.update(pageRef, {
+      'teamSpaceId': teamSpaceId,
+      'lastEdited': FieldValue.serverTimestamp(),
+    });
+
+    // 4) 팀 멤버 등록(업서트)
+    // ⚠️ 지금 너는 teamMembers 문서 id를 membersCol.doc()로 랜덤 생성하고 있어서
+    //     같은 사람이 중복 초대될 수 있음.
+    //     그래서 "결합키" 문서 ID로 바꿔서 중복을 원천 차단하는게 베스트.
+    //
+    // 문서ID = "$teamSpaceId_$uid"
+    final unique = memberUids.toSet(); // 중복 제거
+    for (final uid in unique) {
+      if (uid.isEmpty) continue;
+
+      final memberDocId = '${teamSpaceId}_$uid';
+      final memberRef = membersCol.doc(memberDocId);
+
+      batch.set(memberRef, {
+        'teamSpaceId': teamSpaceId,
+        'userUid': uid,
+        'role': (uid == ownerUid) ? 'owner' : 'editor',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+    debugPrint('sharePageToExistingTeam committed (teamSpaceId=$teamSpaceId)');
   }
 
   @override
@@ -294,6 +369,8 @@ class FirestoreApiService implements ApiService {
           'content': data['content'] ?? '',
           'textColor': data['textColor'],
           'backgroundColor': data['backgroundColor'],
+          'targetPageId': data['targetPageId'],
+          'linkedPageId': data['linkedPageId'],
         };
       }).toList();
     } catch (e) {
@@ -328,6 +405,8 @@ class FirestoreApiService implements ApiService {
           'content': block['content'],
           'textColor': block['textColor'],
           'backgroundColor': block['backgroundColor'],
+          'targetPageId': block['targetPageId'],
+          'linkedPageId': block['linkedPageId'],
           'order': i,
         });
       }

@@ -83,6 +83,7 @@ class PageRepository {
         'lastEdited': page.lastEdited.toIso8601String(),
         'isFavorite': page.isFavorite,
         'parentId': page.parentId,
+        'teamSpaceId': page.teamSpaceId,
       }, _userId);
     } catch (e) {
       debugPrint('[Repository] updatePage 실패: $e');
@@ -265,6 +266,26 @@ class PageRepository {
     await firestore.promotePageToTeam(
       pageId: pageId,
       ownerUid: userId,
+      memberUids: memberUids,
+    );
+  }
+
+  Future<void> sharePageToExistingTeam({
+    required String pageId,
+    required String teamSpaceId,
+    required List<String> memberUids,
+  }) async {
+    final userId = _userId;
+    if (userId.isEmpty) {
+      throw Exception('로그인 상태에서만 공유할 수 있습니다.');
+    }
+
+    final firestore = _apiService as FirestoreApiService;
+
+    await firestore.sharePageToExistingTeam(
+      pageId: pageId,
+      teamSpaceId: teamSpaceId,
+      actingUid: userId, // "실행자"
       memberUids: memberUids,
     );
   }
