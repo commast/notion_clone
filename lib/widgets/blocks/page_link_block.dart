@@ -12,9 +12,11 @@ class PageLinkBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
+        width: double.infinity,
         margin: const EdgeInsets.symmetric(vertical: 8.0),
         padding: const EdgeInsets.all(14.0),
         decoration: BoxDecoration(
@@ -24,15 +26,26 @@ class PageLinkBlock extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.description_outlined, size: 20, color: Colors.grey.shade700),
+            Icon(
+              Icons.description_outlined,
+              size: 20,
+              color: Colors.grey.shade700,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 pageTitle,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade600),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: Colors.grey.shade600,
+            ),
           ],
         ),
       ),

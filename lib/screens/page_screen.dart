@@ -35,7 +35,7 @@ import '../widgets/blocks/page_link_block.dart';
 class NotionPageScreen extends StatefulWidget {
   final PageData page;
   final VoidCallback? onNewPage;
-  
+
   final void Function(PageData)? onPageChanged;
   final Function(PageData)? onFavoriteToggle;
   final Function(PageData)? onDuplicate;
@@ -81,7 +81,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: '제목 없음',
       lastEdited: DateTime.now(),
-      parentId: widget.page.id,   // 현재 페이지를 부모로
+      parentId: widget.page.id, // 현재 페이지를 부모로
       parentPage: widget.page,
     );
 
@@ -99,16 +99,16 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
         widget.onPageCreated!(newPage);
       }
 
-      _openPage(newPage);  // 새 페이지로 이동
+      _openPage(newPage); // 새 페이지로 이동
     } catch (e) {
       debugPrint('하위 페이지 생성 실패: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('페이지 생성 실패: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('페이지 생성 실패: $e')));
       }
     }
   }
-
 
   void _showBlockMenu(int index) {
     if (index < 0 || index >= _currentBlocks.length) return;
@@ -414,17 +414,16 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   void _deleteCurrentLine() {
-  if (_currentFocusedBlockIndex >= 0 &&
-      _currentFocusedBlockIndex < _currentBlocks.length) {
-    _saveState(); // 실행 취소(Undo)를 위해 상태 저장
-    setState(() {
-      
-      _currentBlocks.removeAt(_currentFocusedBlockIndex);
-      _currentFocusedBlockIndex = -1; 
-      FocusScope.of(context).unfocus();
-    });
+    if (_currentFocusedBlockIndex >= 0 &&
+        _currentFocusedBlockIndex < _currentBlocks.length) {
+      _saveState(); // 실행 취소(Undo)를 위해 상태 저장
+      setState(() {
+        _currentBlocks.removeAt(_currentFocusedBlockIndex);
+        _currentFocusedBlockIndex = -1;
+        FocusScope.of(context).unfocus();
+      });
+    }
   }
-}
 
   void _showColorPicker() {
     if (_currentFocusedBlockIndex < 0 ||
@@ -525,21 +524,22 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
   void _addBlock(String blockType) async {
     //삽입할 위치 계산
-  int insertIndex = _currentBlocks.length;
-  if (_currentFocusedBlockIndex >= 0 && 
-      _currentFocusedBlockIndex < _currentBlocks.length) {
-    insertIndex = _currentFocusedBlockIndex + 1;
-  }
+    int insertIndex = _currentBlocks.length;
+    if (_currentFocusedBlockIndex >= 0 &&
+        _currentFocusedBlockIndex < _currentBlocks.length) {
+      insertIndex = _currentFocusedBlockIndex + 1;
+    }
 
-  //중복 코드를 줄이는 내부 함수 생성 
- void insertNewBlock(BlockData newBlock) {
-    setState(() {
-      
-      if (insertIndex > _currentBlocks.length) insertIndex = _currentBlocks.length;
-      _currentBlocks.insert(insertIndex, newBlock);
-      _currentFocusedBlockIndex = insertIndex;
-    });
-  }
+    //중복 코드를 줄이는 내부 함수 생성
+    void insertNewBlock(BlockData newBlock) {
+      setState(() {
+        if (insertIndex > _currentBlocks.length)
+          insertIndex = _currentBlocks.length;
+        _currentBlocks.insert(insertIndex, newBlock);
+        _currentFocusedBlockIndex = insertIndex;
+      });
+    }
+
     _saveState();
 
     switch (blockType) {
@@ -594,19 +594,13 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
       case 'todo_list':
         insertNewBlock(
-          BlockData(
-            type: 'todo_list',
-            content: {'checked': false, 'text': ''},
-          ),
+          BlockData(type: 'todo_list', content: {'checked': false, 'text': ''}),
         );
         break;
 
       case 'toggle_list':
         insertNewBlock(
-          BlockData(
-            type: 'toggle_list',
-            content: {'title': '', 'content': ''},
-          ),
+          BlockData(type: 'toggle_list', content: {'title': '', 'content': ''}),
         );
         break;
 
@@ -641,7 +635,6 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
             widget.onPageCreated!(newPage);
           }
 
-          
           insertNewBlock(
             BlockData(type: 'page', content: '$newPageId|$newPageTitle'),
           );
@@ -920,9 +913,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   );
                   debugPrint('promotePageToTeam done (invite)');
 
-                  widget.page.teamSpaceId = teamSpaceId ?? 'some-team-id'; // 실제 값으로 세팅
+                  widget.page.teamSpaceId =
+                      teamSpaceId ?? 'some-team-id'; // 실제 값으로 세팅
                   if (widget.onPageChanged != null) {
-                    widget.onPageChanged!(widget.page);  // updatedPage 넘기기
+                    widget.onPageChanged!(widget.page); // updatedPage 넘기기
                   }
 
                   if (mounted) {
@@ -1000,109 +994,105 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
   }
 
   @override
-Widget build(BuildContext context) {
-  final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-  final bool isKeyboardVisible = keyboardHeight > 0;
-  final double bottomBarHeight = 50.0 + MediaQuery.of(context).padding.bottom;
+  Widget build(BuildContext context) {
+    final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final bool isKeyboardVisible = keyboardHeight > 0;
+    final double bottomBarHeight = 50.0 + MediaQuery.of(context).padding.bottom;
 
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('페이지 로딩 중...'),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
-  if (_isLoading) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('페이지 로딩 중...'),
-      ),
-      body: const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  return Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, size: 20),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: GestureDetector(
-        onTap: _showPageNavigationDialog,
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.description_outlined, size: 18),
-            SizedBox(width: 4),
-            Text(
-              '페이지 탐색',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 14),
-          ],
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.group_add),
-          onPressed: _showMembersDialog,
-        ),
-        IconButton(
-          icon: const Icon(Icons.more_horiz),
-          onPressed: _showPageActionsMenu,
-        ),
-      ],
-    ),
-    body: Stack(
-      children: [
-        ListView.builder(
-          padding: EdgeInsets.only(
-            left: 16.0,
-            right: 16.0,
+        title: GestureDetector(
+          onTap: _showPageNavigationDialog,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.description_outlined, size: 18),
+              SizedBox(width: 4),
+              Text(
+                '페이지 탐색',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 14),
+            ],
           ),
-          itemCount: _currentBlocks.length + 1,
-          itemBuilder: (context, index) {
-            if (index == _currentBlocks.length) {
-              // 키보드 / 바텀바 높이만큼 여백
-              return SizedBox(
-                height: isKeyboardVisible ? 0 : bottomBarHeight,
-              );
-            }
-
-            final block = _currentBlocks[index];
-            Widget blockWidget;
-
-            switch (block.type) {
-              case 'title':
-                blockWidget = EditableTextBlock(
-                  initialText: block.content as String,
-                  isTitle: true,
-                  focusNode: _focusNode,
-                  pageId: widget.page.id,
-                  textColor: block.textColor,
-                  onChanged: (val) async {
-                    block.content = val;
-                    widget.page.title = val;
-                    widget.page.lastEdited = DateTime.now();
-
-                    // 제목이 바뀔 때마다 홈에 알림
-                    widget.onPageChanged?.call(widget.page);
-
-                    setState(() {});
-                    if (_repository != null) {
-                      try {
-                        await _repository!.updatePage(widget.page);
-                      } catch (e) {
-                        debugPrint('update title error: $e');
-                      }
-                    }
-                  },
-                  onTap: () {
-                    setState(() {
-                      _currentFocusedBlockIndex = index;
-                    });
-                  },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.group_add),
+            onPressed: _showMembersDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_horiz),
+            onPressed: _showPageActionsMenu,
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          ListView.builder(
+            padding: EdgeInsets.only(left: 16.0, right: 16.0),
+            itemCount: _currentBlocks.length + 1,
+            itemBuilder: (context, index) {
+              if (index == _currentBlocks.length) {
+                // 키보드 / 바텀바 높이만큼 여백
+                return SizedBox(
+                  height: isKeyboardVisible ? 0 : bottomBarHeight,
                 );
-                break;
+              }
+
+              final block = _currentBlocks[index];
+              Widget blockWidget;
+
+              switch (block.type) {
+                case 'title':
+                  blockWidget = EditableTextBlock(
+                    initialText: block.content as String,
+                    isTitle: true,
+                    focusNode: _focusNode,
+                    pageId: widget.page.id,
+                    textColor: block.textColor,
+                    onChanged: (val) async {
+                      block.content = val;
+                      widget.page.title = val;
+                      widget.page.lastEdited = DateTime.now();
+
+                      // 제목이 바뀔 때마다 홈에 알림
+                      widget.onPageChanged?.call(widget.page);
+
+                      setState(() {});
+                      if (_repository != null) {
+                        try {
+                          await _repository!.updatePage(widget.page);
+                        } catch (e) {
+                          debugPrint('update title error: $e');
+                        }
+                      }
+                    },
+                    onTap: () {
+                      setState(() {
+                        _currentFocusedBlockIndex = index;
+                      });
+                    },
+                  );
+                  break;
 
                 case 'text':
                   blockWidget = EditableTextBlock(
@@ -1456,7 +1446,7 @@ Widget build(BuildContext context) {
                   blockWidget = PageLinkBlock(
                     key: ValueKey(block),
                     pageTitle: pageTitle,
-                     onTap: () {
+                    onTap: () {
                       // 항상 트리 전체에서 검색
                       final allPages = _getAllPages();
                       PageData? targetPage;
@@ -1491,7 +1481,6 @@ Widget build(BuildContext context) {
                     },
                   );
                   break;
-
 
                 case 'code':
                   blockWidget = CodeBlock(
@@ -1602,88 +1591,59 @@ Widget build(BuildContext context) {
                 default:
                   blockWidget = const SizedBox.shrink();
               }
-              return GestureDetector(
-              behavior: HitTestBehavior.translucent, 
-              onLongPress: () {
-                // 꾹 눌렀을 때 메뉴 실행
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) {
-                    return SafeArea(
-                      child: Wrap(
-                        children: [
-                          ListTile(
-                            leading: Icon(Icons.delete, color: Colors.red),
-                            title: Text('삭제하기', style: TextStyle(color: Colors.red)),
-                            onTap: () {
-                              Navigator.pop(context); // 메뉴 닫기
-                              
-                              // [삭제 로직]
-                              setState(() {
-                                // 1. 데이터 리스트에서 삭제
-                                _currentBlocks.removeAt(index);
-                                
-                                
-                               
-                              });
-                            },
-                          ),
-                          
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-              // 실제 화면에 그려지는 부분
-              child: Container(
-                // 블록 간 간격 조절
-                margin: const EdgeInsets.symmetric(vertical: 2.0), 
-                child: blockWidget, 
-              ),
-            );
-
-            },
-          ),
-
-          
-        ],
-      ),
-
-      bottomSheet: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (isKeyboardVisible)
-          KeyboardAccessoryBar(
-            onPlusPressed: _showBlockSelector,     
-            onImagePressed: _showImagePickerModal,
-            onUndoPressed: _undo,
-            onDeletePressed: _deleteCurrentLine,
-            onColorPressed: _showColorPicker,
-            canUndo: canUndo,
-          )
-        else
-          NotionBottomBar(
-            onHome: () => Navigator.pop(context),
-            onSearch: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (ctx) => SearchScreen(
-                    allPages: widget.allPages ?? [],
-                    onNewPage: (_) => _createSubPageAndOpen(),
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  // ✅ 롱프레스만 처리 (탭은 자식 위젯이 받게 됨)
+                  onLongPress: () => _showBlockMenu(index),
+                  // ✅ 탭을 부모가 먹지 않도록
+                  onTap: null,
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: blockWidget,
                   ),
                 ),
               );
             },
-            onNewPage: _createSubPageAndOpen,
           ),
-      ],
-    ),
-  );
- }
-}
+        ],
+      ),
 
+      bottomSheet: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isKeyboardVisible)
+            KeyboardAccessoryBar(
+              onPlusPressed: _showBlockSelector,
+              onImagePressed: _showImagePickerModal,
+              onUndoPressed: _undo,
+              onDeletePressed: _deleteCurrentLine,
+              onColorPressed: _showColorPicker,
+              canUndo: canUndo,
+            )
+          else
+            NotionBottomBar(
+              onHome: () => Navigator.pop(context),
+              onSearch: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => SearchScreen(
+                      allPages: widget.allPages ?? [],
+                      onNewPage: (_) => _createSubPageAndOpen(),
+                    ),
+                  ),
+                );
+              },
+              onNewPage: _createSubPageAndOpen,
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 // 나머지 Dialog 클래스들
 class _PageNavigationDialog extends StatefulWidget {
