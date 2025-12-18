@@ -170,36 +170,50 @@ class _NotionChartState extends State<NotionChart> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ✅ 제목 클릭 → 그 자리에서 TextField 로 편집
-          _isEditingTitle
-              ? TextField(
-                  controller: _titleController,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  onSubmitted: (_) => _finishTitleEdit(),
-                  onEditingComplete: _finishTitleEdit,
-                )
-              : GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isEditingTitle = true;
-                      _titleController.text = _chartTitle;
-                    });
-                  },
-                  child: Text(
-                    _chartTitle,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+_isEditingTitle
+    ? TextField(
+        controller: _titleController,
+        autofocus: true,
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+        ),
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+        // ✅ 타이핑할 때마다 _data + onChanged 갱신
+        onChanged: (val) {
+          final newTitle = val.trim();
+          if (newTitle.isEmpty) return;
+
+          final updated = _data.map<Map<String, dynamic>>((item) {
+            final copy = Map<String, dynamic>.from(item);
+            copy['chartTitle'] = newTitle;
+            return copy;
+          }).toList();
+
+          _updateChartData(updated); // 여기서 widget.onChanged 호출됨
+        },
+        onSubmitted: (_) => _finishTitleEdit(),
+        onEditingComplete: _finishTitleEdit,
+      )
+    : GestureDetector(
+        onTap: () {
+          setState(() {
+            _isEditingTitle = true;
+            _titleController.text = _chartTitle;
+          });
+        },
+        child: Text(
+          _chartTitle,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+
           const SizedBox(height: 15),
           IntrinsicHeight(
             child: Row(

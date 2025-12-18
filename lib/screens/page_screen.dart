@@ -564,15 +564,52 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
       insertIndex = _currentFocusedBlockIndex + 1;
     }
 
-    //중복 코드를 줄이는 내부 함수 생성
     void insertNewBlock(BlockData newBlock) {
-      setState(() {
-        if (insertIndex > _currentBlocks.length)
-          insertIndex = _currentBlocks.length;
-        _currentBlocks.insert(insertIndex, newBlock);
-        _currentFocusedBlockIndex = insertIndex;
-      });
+  setState(() {
+    if (insertIndex > _currentBlocks.length) {
+      insertIndex = _currentBlocks.length;
     }
+    _currentBlocks.insert(insertIndex, newBlock);
+    _currentFocusedBlockIndex = insertIndex;
+  });
+}
+
+// 예: 페이지 선택 다이얼로그에서 PageData를 하나 고른 뒤
+void _insertChartBlock() {
+  insertNewBlock(
+    BlockData(
+      type: 'chart',
+      content: [
+        {
+          'label': '1분기',
+          'value': 80.0,
+          'color': const Color(0xFF676EFF).value,
+          'chartTitle': '분기별 성과 (막대 차트)',
+        },
+        {
+          'label': '2분기',
+          'value': 60.0,
+          'color': const Color(0xFFF06543).value,
+          'chartTitle': '분기별 성과 (막대 차트)',
+        },
+        {
+          'label': '3분기',
+          'value': 95.0,
+          'color': const Color(0xFF43A047).value,
+          'chartTitle': '분기별 성과 (막대 차트)',
+        },
+        {
+          'label': '4분기',
+          'value': 40.0,
+          'color': const Color(0xFFFFCC00).value,
+          'chartTitle': '분기별 성과 (막대 차트)',
+        },
+      ],
+    ),
+  );
+}
+
+
 
     _saveState();
 
@@ -1586,44 +1623,47 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                   break;
 
                 case 'chart':
-                  // 예전 데이터까지 안전하게 처리 (null, String, Map, List 모두)
-                  final dynamic rawContent = block.content;
+  // Firestore나 로컬에서 읽어온 원본 content
+  final rawContent = block.content;
+  final List<Map<String, dynamic>> data = [];
 
-                  final List<Map<String, dynamic>> data = [];
+  if (rawContent is List) {
+    // 정상 케이스: 이미 리스트 형태로 저장된 경우
+    for (final item in rawContent) {
+      if (item is Map) {
+        final map = Map<String, dynamic>.from(item);
+        final colorVal = map['color'];
 
-                  if (rawContent is List) {
-                    // 정상 케이스: 이미 리스트 형태로 저장된 경우
-                    for (final item in rawContent) {
-                      if (item is Map) {
-                        final map = Map<String, dynamic>.from(item);
-                        final colorVal = map['color'];
+        // color가 int면 Color로 복원
+        if (colorVal is int) {
+          map['color'] = Color(colorVal);
+        }
 
-                        // color가 int면 Color로 복원
-                        if (colorVal is int) {
-                          map['color'] = Color(colorVal);
-                        }
+        // chartTitle 은 그대로 둠 (있으면 NotionChart 가 사용)
+        data.add(map);
+      }
+    }
+  } else {
+    // 예전 데이터는 그냥 빈 데이터로 처리
+    // NotionChart 가 기본 더미 데이터로 채워줌
+  }
 
-                        data.add(map);
-                      }
-                    }
-                  } else {
-                    // 예전 데이터는 그냥 빈 데이터로 처리
-                    // NotionChart가 기본 더미 데이터로 채워줌
-                  }
+  blockWidget = GestureDetector(
+    onLongPress: () => _showBlockMenu(index),
+    child: NotionChart(
+      key: ValueKey(block),
+      initialData: data,
+      onChanged: (serializedData) {
+  debugPrint('Chart serialized: $serializedData');
 
-                  blockWidget = GestureDetector(
-                    onLongPress: () => _showBlockMenu(index),
-                    child: NotionChart(
-                      key: ValueKey(block),
-                      initialData: data,
-                      onChanged: (serializedData) {
-                        setState(() {
-                          block.content = serializedData; // 항상 List<Map> 로 덮어쓰기
-                        });
-                      },
-                    ),
-                  );
-                  break;
+  setState(() {
+    block.content = serializedData;
+    widget.page.lastEdited = DateTime.now();
+  });
+},
+    ),
+  );
+  break;
 
                 case 'table':
                   final Map<String, dynamic> tableData =
@@ -1649,15 +1689,54 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     imageFile: File(block.content as String),
                   );
                   break;
-                case 'page_link':
+                                case 'page_link':
+                  // content: { linkedPageId: ..., title: ... } 형태라고 가정
+                  String? linkedId;
+                  String fallbackTitle = '링크된 페이지';
+
+                  if (block.content is Map) {
+                    final map =
+                        Map<String, dynamic>.from(block.content as Map);
+                    linkedId = map['linkedPageId'] as String?;
+                    if (map['title'] is String &&
+                        (map['title'] as String).isNotEmpty) {
+                      fallbackTitle = map['title'] as String;
+                    }
+                  } else if (block.content is String) {
+                    // 예전 데이터 호환: content 에 제목만 있는 경우
+                    fallbackTitle = block.content as String;
+                  }
+
+                  final targetId = block.linkedPageId ??
+                      block.targetPageId ??
+                      linkedId;
+
+                  String pageTitleToShow = fallbackTitle;
+
+                  if (targetId != null && targetId.isNotEmpty) {
+                    final all = _getAllPages();
+                    final found = all
+                        .where((p) => p.id == targetId)
+                        .toList();
+                    if (found.isNotEmpty) {
+                      pageTitleToShow = found.first.title;
+                    }
+                  }
+
                   blockWidget = PageLinkBlock(
-                    pageTitle: block.content as String,
+                    pageTitle: pageTitleToShow,
                     onTap: () {
-                      final targetId = block.linkedPageId ?? block.targetPageId;
-                      if (targetId == null || targetId.isEmpty) return;
+                      if (targetId == null || targetId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('대상 페이지를 찾을 수 없습니다.'),
+                          ),
+                        );
+                        return;
+                      }
 
                       final allPages = _getAllPages();
-
                       PageData? targetPage;
                       try {
                         targetPage = allPages.firstWhere(
@@ -1669,7 +1748,10 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
 
                       if (targetPage == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('대상 페이지를 찾을 수 없습니다.')),
+                          const SnackBar(
+                            content:
+                                Text('대상 페이지를 찾을 수 없습니다.'),
+                          ),
                         );
                         return;
                       }
@@ -1678,6 +1760,7 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
                     },
                   );
                   break;
+
 
                 default:
                   blockWidget = const SizedBox.shrink();

@@ -136,23 +136,28 @@ class PageRepository {
         dynamic content;
 
         if (block.type == 'chart') {
-          // 차트 블록은 항목별로 안전하게 직렬화 (label, value, color, chartTitle)
-          final List<dynamic> items = (block.content as List?) ?? const [];
+  final List<dynamic> items = (block.content as List?) ?? const [];
 
-          content = items.map((e) {
-            final map = Map<String, dynamic>.from(e as Map);
-            final colorVal = map['color'];
+  content = items.map((e) {
+    final map = Map<String, dynamic>.from(e as Map);
+    final colorVal = map['color'];
 
-            return {
-              'label': map['label'],
-              'value': map['value'],
-              'color': colorVal is Color ? colorVal.value : colorVal,
-              if (map['chartTitle'] != null) 'chartTitle': map['chartTitle'],
-            };
-          }).toList();
-        } else {
-          content = block.content;
-        }
+    final result = {
+      'label': map['label'],
+      'value': map['value'],
+      'color': colorVal is Color ? colorVal.value : colorVal,
+      if (map['chartTitle'] != null) 'chartTitle': map['chartTitle'],
+    };
+
+    return result;
+  }).toList();
+
+  // ✅ 여기서 한 번 전체 리스트 찍기
+  debugPrint('saveBlocks chart content: $content');
+} else {
+  content = block.content;
+}
+
 
         return {
           'type': block.type,

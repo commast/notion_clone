@@ -15,11 +15,31 @@ class FirestoreBlockOperations {
           .get();
 
       debugPrint('블록 조회: ${snapshot.docs.length}개 (페이지: $pageId)');
-      
+
+      // ✅ chart / pagelink 등 특수 타입은 여기서 한 번 변환해서 올려보낸다.
       return snapshot.docs.map((doc) {
+        final data = doc.data();
+        final type = data['type'] as String?;
+        final content = data['content'];
+
+        dynamic fixedContent = content;
+
+        if (type == 'chart' && content is List) {
+          // Firestore에서 넘어오는 Map<String, dynamic> 리스트로 정제
+          fixedContent = content
+              .whereType<Map>()
+              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+
+        if (type == 'pagelink' && content is Map) {
+          fixedContent = Map<String, dynamic>.from(content);
+        }
+
         return {
           'id': doc.id,
-          ...doc.data(),
+          ...data,
+          if (fixedContent != null) 'content': fixedContent,
         };
       }).toList();
     } catch (e) {
@@ -47,9 +67,12 @@ class FirestoreBlockOperations {
         order = snapshot.docs.length;
       }
 
+      // ✅ type 에 따라 content 를 Firestore-friendly 형태로 직렬화
+      final serializedContent = _serializeContent(type, content);
+
       final docRef = await blocksRef.add({
         'type': type,
-        'content': content,
+        'content': serializedContent,
         'order': order,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -67,15 +90,18 @@ class FirestoreBlockOperations {
     required String pageId,
     required String blockId,
     required dynamic newContent,
+    required String type, // ✅ 호출 쪽에서 type 같이 넘기도록
   }) async {
     try {
+      final serializedContent = _serializeContent(type, newContent);
+
       await _firestore
           .collection('pages')
           .doc(pageId)
           .collection('blocks')
           .doc(blockId)
           .update({
-        'content': newContent,
+        'content': serializedContent,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -103,7 +129,7 @@ class FirestoreBlockOperations {
     }
   }
 
-  /// 5. 모든 블록 일괄 저장 
+  /// 5. 모든 블록 일괄 저장
   Future<void> saveAllBlocks({
     required String pageId,
     required List<Map<String, dynamic>> blocks,
@@ -124,8 +150,14 @@ class FirestoreBlockOperations {
       // 새 블록 저장
       for (int i = 0; i < blocks.length; i++) {
         final newDocRef = blocksRef.doc();
+        final type = blocks[i]['type'] as String? ?? '';
+        final rawContent = blocks[i]['content'];
+
+        final serializedContent = _serializeContent(type, rawContent);
+
         batch.set(newDocRef, {
           ...blocks[i],
+          'content': serializedContent,
           'order': i,
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -154,11 +186,28 @@ class FirestoreBlockOperations {
           .get();
 
       debugPrint('블록 타입별 조회: ${snapshot.docs.length}개 (타입: $blockType)');
-      
+
       return snapshot.docs.map((doc) {
+        final data = doc.data();
+        final content = data['content'];
+
+        dynamic fixedContent = content;
+
+        if (blockType == 'chart' && content is List) {
+          fixedContent = content
+              .whereType<Map>()
+              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+
+        if (blockType == 'pagelink' && content is Map) {
+          fixedContent = Map<String, dynamic>.from(content);
+        }
+
         return {
           'id': doc.id,
-          ...doc.data(),
+          ...data,
+          if (fixedContent != null) 'content': fixedContent,
         };
       }).toList();
     } catch (e) {
@@ -176,7 +225,7 @@ class FirestoreBlockOperations {
           .collection('blocks')
           .count()
           .get();
-      
+
       final count = snapshot.count ?? 0;
       debugPrint('블록 개수: $count개 (페이지: $pageId)');
       return count;
@@ -184,5 +233,31 @@ class FirestoreBlockOperations {
       debugPrint('getBlockCount 실패: $e');
       return 0;
     }
+  }
+
+  /// ✅ 타입별 content 직렬화 로직
+  dynamic _serializeContent(String type, dynamic content) {
+    if (type == 'chart' && content is List) {
+      // NotionChart 의 onChanged 에서 이미 Color -> int 로 바뀐 리스트를 넘겨주도록 맞추는 게 베스트이지만,
+      // 혹시 Color 가 남아 있으면 여기서 한 번 더 보정.
+      return content.map((item) {
+        if (item is Map<String, dynamic>) {
+          final copy = Map<String, dynamic>.from(item);
+          if (copy['color'] is Color) {
+            copy['color'] = (copy['color'] as Color).value;
+          }
+          return copy;
+        }
+        return item;
+      }).toList();
+    }
+
+    if (type == 'pagelink' && content is Map<String, dynamic>) {
+      // { linkedPageId: ..., title: ... } 형태로 저장
+      return Map<String, dynamic>.from(content);
+    }
+
+    // 그 외 타입은 그대로
+    return content;
   }
 }
