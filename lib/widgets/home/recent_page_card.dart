@@ -23,10 +23,10 @@ class RecentPageCard extends StatelessWidget {
       child: Material(
         color: color,
         borderRadius: BorderRadius.circular(10),
-        clipBehavior: Clip.hardEdge, // 물결 효과가 둥근 모서리를 넘지 않게 자름
+        clipBehavior: Clip.hardEdge,
         child: InkWell(
-          onTap: onTap, // 2. 클릭 이벤트 연결
-          // 3. 내부 컨테이너 (크기와 내부 패딩만 담당)
+          onTap: onTap,
+
           child: Container(
             width: 150, // 카드의 고정 너비
             padding: const EdgeInsets.all(12.0),
@@ -36,7 +36,7 @@ class RecentPageCard extends StatelessWidget {
                 // 아이콘
                 Icon(icon, size: 24, color: Colors.black54),
                 
-                const Spacer(), // 남은 공간을 차지하여 텍스트를 아래로 밈
+                const Spacer(),
                 
                 // 제목
                 Text(
@@ -51,7 +51,6 @@ class RecentPageCard extends StatelessWidget {
                 
                 const SizedBox(height: 4),
                 
-                // 부가 설명
                 const Text(
                   '마지막 편집: 오늘',
                   style: TextStyle(

@@ -62,7 +62,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       _currentUser = newUser;
       
       // 3. 기존 데이터 비우고 새로 로드
-      // Repository 내부에서 userId가 없으면 게스트용, 있으면 유저용 데이터를 가져옴
       _loadPages();
     }
   }
@@ -252,7 +251,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
 
         // 페이지 안에서 제목/내용이 변경될 때마다 호출됨
         onPageChanged: (updatedPage) {
-          // 1) 홈에서 _personalPages 트리 전체를 돌면서 같은 id 페이지 동기화
           final Map<String, PageData> allMap = {};
           for (var root in _personalPages) {
             _collectPagesRecursively(root, allMap);
@@ -305,8 +303,6 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
             }
           });
 
-          // 새 페이지도 최근 방문에 반영하고 싶으면 여기에서 호출 가능
-          // _updateRecentPages(newPage);
         },
       ),
     ),
@@ -501,12 +497,12 @@ class _NotionHomeScreenState extends State<NotionHomeScreen> {
       ),
     );
 
-    if (targetParent == null) return; // 취소한 경우
+    if (targetParent == null) return;
 
     try {
       final repository = Provider.of<PageRepository>(context, listen: false);
 
-      // 2) Firestore에 parentId 업데이트
+    
       final updated = page.copyWith(
         parentId: targetParent.id,
         parentPage: targetParent,

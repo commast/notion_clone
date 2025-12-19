@@ -10,7 +10,7 @@ class PageRepository {
 
   PageRepository(this._apiService, this._authService);
 
-  // 현재 사용자 ID 가져오기 (로그아웃 상태면 빈 문자열 '' 반환)
+  // 현재 사용자 ID 가져오기
   String get _userId => _authService.getCurrentUserId();
 
   /// 모든 페이지 가져오기
@@ -58,7 +58,7 @@ class PageRepository {
   /// 새 페이지 생성
   Future<String> createPage(PageData page) async {
     try {
-      // 현재 userId(게스트면 '', 회원이면 UID)로 저장
+      
       final pageId = await _apiService.createPage({
         'id': page.id,
         'title': page.title,
@@ -152,7 +152,7 @@ class PageRepository {
     return result;
   }).toList();
 
-  // ✅ 여기서 한 번 전체 리스트 찍기
+  
   debugPrint('saveBlocks chart content: $content');
 } else {
   content = block.content;
@@ -161,7 +161,7 @@ class PageRepository {
 
         return {
           'type': block.type,
-          'content': content, // ✅ 여기 꼭 content!
+          'content': content,
           'textColor': block.textColor?.value,
           'backgroundColor': block.backgroundColor?.value,
           'targetPageId': block.targetPageId,

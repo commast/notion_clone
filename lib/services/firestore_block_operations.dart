@@ -16,7 +16,6 @@ class FirestoreBlockOperations {
 
       debugPrint('블록 조회: ${snapshot.docs.length}개 (페이지: $pageId)');
 
-      // ✅ chart / pagelink 등 특수 타입은 여기서 한 번 변환해서 올려보낸다.
       return snapshot.docs.map((doc) {
         final data = doc.data();
         final type = data['type'] as String?;
@@ -61,13 +60,11 @@ class FirestoreBlockOperations {
           .doc(pageId)
           .collection('blocks');
 
-      // order가 없으면 마지막 순서 계산
       if (order == null) {
         final snapshot = await blocksRef.get();
         order = snapshot.docs.length;
       }
 
-      // ✅ type 에 따라 content 를 Firestore-friendly 형태로 직렬화
       final serializedContent = _serializeContent(type, content);
 
       final docRef = await blocksRef.add({
@@ -90,7 +87,7 @@ class FirestoreBlockOperations {
     required String pageId,
     required String blockId,
     required dynamic newContent,
-    required String type, // ✅ 호출 쪽에서 type 같이 넘기도록
+    required String type,
   }) async {
     try {
       final serializedContent = _serializeContent(type, newContent);
@@ -235,11 +232,8 @@ class FirestoreBlockOperations {
     }
   }
 
-  /// ✅ 타입별 content 직렬화 로직
   dynamic _serializeContent(String type, dynamic content) {
     if (type == 'chart' && content is List) {
-      // NotionChart 의 onChanged 에서 이미 Color -> int 로 바뀐 리스트를 넘겨주도록 맞추는 게 베스트이지만,
-      // 혹시 Color 가 남아 있으면 여기서 한 번 더 보정.
       return content.map((item) {
         if (item is Map<String, dynamic>) {
           final copy = Map<String, dynamic>.from(item);
@@ -253,11 +247,9 @@ class FirestoreBlockOperations {
     }
 
     if (type == 'pagelink' && content is Map<String, dynamic>) {
-      // { linkedPageId: ..., title: ... } 형태로 저장
       return Map<String, dynamic>.from(content);
     }
 
-    // 그 외 타입은 그대로
     return content;
   }
 }

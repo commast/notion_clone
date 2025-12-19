@@ -16,7 +16,6 @@ class _NotionChartState extends State<NotionChart> {
   bool _isEditingTitle = false;
   late TextEditingController _titleController;
 
-  /// ✅ 차트 제목: 데이터에 chartTitle 이 있으면 그걸 쓰고, 없으면 기본 제목
   String get _chartTitle {
     if (_data.isNotEmpty &&
         _data[0]['chartTitle'] is String &&
@@ -80,7 +79,6 @@ class _NotionChartState extends State<NotionChart> {
     });
 
     if (widget.onChanged != null) {
-      // Color -> int 직렬화 + chartTitle 도 함께 저장
       final serialized = newData
           .map(
             (item) => {
@@ -105,7 +103,6 @@ class _NotionChartState extends State<NotionChart> {
 
     if (newTitle.isEmpty) return;
 
-    // 모든 데이터 아이템에 chartTitle 반영
     final updated = _data.map<Map<String, dynamic>>((item) {
       final copy = Map<String, dynamic>.from(item);
       copy['chartTitle'] = newTitle;
@@ -169,7 +166,6 @@ class _NotionChartState extends State<NotionChart> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ 제목 클릭 → 그 자리에서 TextField 로 편집
 _isEditingTitle
     ? TextField(
         controller: _titleController,
@@ -182,7 +178,6 @@ _isEditingTitle
           fontSize: 16,
           fontWeight: FontWeight.bold,
         ),
-        // ✅ 타이핑할 때마다 _data + onChanged 갱신
         onChanged: (val) {
           final newTitle = val.trim();
           if (newTitle.isEmpty) return;
@@ -266,7 +261,6 @@ _isEditingTitle
   }
 }
 
-// ───────────────── Y 축 레이블 ─────────────────
 
 class _YAxisLabels extends StatelessWidget {
   final double chartMaxValue;
@@ -299,7 +293,6 @@ class _YAxisLabels extends StatelessWidget {
   }
 }
 
-// ───────────────── 그래프 영역 ─────────────────
 
 class _GraphArea extends StatelessWidget {
   final List<Map<String, dynamic>> data;
@@ -362,7 +355,6 @@ class _GraphArea extends StatelessWidget {
   }
 }
 
-// ───────────────── 막대 아이템 ─────────────────
 
 class _BarItem extends StatelessWidget {
   final String label;
@@ -411,7 +403,6 @@ class _BarItem extends StatelessWidget {
   }
 }
 
-// ───────────────── 편집 모달 ─────────────────
 
 class ChartEditModal extends StatefulWidget {
   final List<Map<String, dynamic>> initialData;

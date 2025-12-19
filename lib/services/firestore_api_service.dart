@@ -296,18 +296,14 @@ class FirestoreApiService implements ApiService {
 
     final pageData = pageSnap.data() as Map<String, dynamic>;
 
-    // ✅ 너 스키마에서 "소유자" 필드는 userId
+   
     final String? ownerUid = pageData['userId'] as String?;
 
-    // 2) 권한 체크 (최소 안전장치)
-    // - 링크 페이지를 "같이 공유" 하려면 적어도 실행자가 그 페이지를 공유할 권한이 있어야 함
-    // - 너의 현재 규칙(휴지통/삭제 등)도 owner만 가능하게 되어있으니 여기서도 owner만 허용하는게 일관적
+    // 2) 권한 체크
     if (ownerUid == null || ownerUid != actingUid) {
       throw Exception('이 페이지를 팀에 공유할 권한이 없습니다.');
     }
 
-    // 3) teamSpaceId를 기존 팀으로 "붙이기"
-    // 이미 다른 팀에 속한 페이지면 막는게 안전 (원하면 정책 바꿀 수 있음)
     final String? currentTeam = pageData['teamSpaceId'] as String?;
     if (currentTeam != null &&
         currentTeam.isNotEmpty &&
@@ -325,12 +321,7 @@ class FirestoreApiService implements ApiService {
     });
 
     // 4) 팀 멤버 등록(업서트)
-    // ⚠️ 지금 너는 teamMembers 문서 id를 membersCol.doc()로 랜덤 생성하고 있어서
-    //     같은 사람이 중복 초대될 수 있음.
-    //     그래서 "결합키" 문서 ID로 바꿔서 중복을 원천 차단하는게 베스트.
-    //
-    // 문서ID = "$teamSpaceId_$uid"
-    final unique = memberUids.toSet(); // 중복 제거
+    final unique = memberUids.toSet();
     for (final uid in unique) {
       if (uid.isEmpty) continue;
 
@@ -439,7 +430,6 @@ class FirestoreApiService implements ApiService {
   }
 
   // 휴지통 관련 메서드
-
   @override
   Future<void> moveToTrash(String pageId, String userId) async {
     try {
@@ -567,7 +557,6 @@ class FirestoreApiService implements ApiService {
       final pageData = Map<String, dynamic>.from(trashDoc.data()!);
       pageData.remove('deletedAt');
 
-      // parentId 명시적 보존
       final parentId = pageData['parentId'] ?? '';
 
       // 복원

@@ -1,0 +1,234 @@
+[33mcommit 4e43528cd9bd532f787a31d9f1899ef7863a2bb2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfinal[m[33m, [m[1;31morigin/final[m[33m)[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Fri Dec 19 01:38:25 2025 +0900
+
+    페이지 링크 & 차트 오류 수정
+
+[33mcommit b9846a74dc27db9965be0ae2ecec1bf9738f6e4a[m[33m ([m[1;31morigin/notion[m[33m, [m[1;32mnotion[m[33m)[m
+Author: leedonghyeon <lmsldh0218@gmail.com>
+Date:   Sun Dec 14 20:08:25 2025 +0900
+
+    차트이름저장오류 수정
+
+[33mcommit 9a4f5e677a2bec441cf8968f03969ef61ac3aea4[m
+Author: jaehy <jaehyuk7014@gmail.com>
+Date:   Sun Dec 14 19:44:47 2025 +0900
+
+    공유 링크 페이지 수정
+
+[33mcommit 484dc52972d9ef48a7dec33e75f0b591eee2f77c[m
+Author: jaehy <jaehyuk7014@gmail.com>
+Date:   Sun Dec 14 15:41:40 2025 +0900
+
+    링크 페이지 오류 수정
+
+[33mcommit 717df03ca810b0a26f2c06d15a81c09162136ef3[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Sat Dec 13 19:35:21 2025 +0900
+
+    이전 & 다음 버튼 삭제
+
+[33mcommit 1f2a6600b9e83b289c1081e23563675817e46f1d[m
+Author: leedonghyeon <lmsldh0218@gmail.com>
+Date:   Sat Dec 13 16:20:04 2025 +0900
+
+    삭제 구현
+
+[33mcommit 508e03e8fd09ec3076e3925e69015467928b7125[m
+Author: leedonghyeon <lmsldh0218@gmail.com>
+Date:   Sat Dec 13 15:52:41 2025 +0900
+
+    블록추가위치 수정
+
+[33mcommit 65a01fc91d24c5914607c3bf632ba83a361138b9[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Fri Dec 12 21:28:43 2025 +0900
+
+    UI개선
+
+[33mcommit e75313269fb973dbe5fed7792a64da2e51170658[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Fri Dec 12 20:01:04 2025 +0900
+
+    최근 방문 페이지 최신화
+
+[33mcommit 430b75e25fb942de876a5f36dfed4a527aac1f60[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Fri Dec 12 14:55:30 2025 +0900
+
+    하위페이지, bottom_bar 수정
+
+[33mcommit c103cf68632761f9505c50f039a1f21c79101812[m
+Author: jaehy <jaehyuk7014@gmail.com>
+Date:   Fri Dec 12 12:57:25 2025 +0900
+
+    feat: 차트/표 블록 롱프레스 복제 및 삭제 메뉴 추가
+
+[33mcommit 797ee1189964511f478f7da7168f761c4a567e25[m
+Author: jaehy <jaehyuk7014@gmail.com>
+Date:   Thu Dec 11 04:16:39 2025 +0900
+
+    팀 페이지 초대 기능 및 링크 페이지 수정
+
+[33mcommit 137ce16fd3c263158eaaa6a06e521c6a757a7801[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Mon Dec 8 11:07:55 2025 +0900
+
+    이모티콘 & 주석 정리
+
+[33mcommit e10392eaa9926be675b6aeb19cd997ae276839ec[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Sun Dec 7 23:41:48 2025 +0900
+
+    add team space
+
+[33mcommit 607cf81c23b96d35e92eb3d38c08eef1b1742b44[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Wed Dec 3 17:03:16 2025 +0900
+
+    표, 차트, 코드 오류 개선
+
+[33mcommit 681dfa2e2ecbb4ad0adb2d24482eb0f37ac914a3[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Wed Dec 3 14:17:59 2025 +0900
+
+    페이지 링크 기능 추가
+
+[33mcommit 81c9b8dc9cd381ac6f07af9dd00f7d9c71f4e186[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Wed Dec 3 12:27:45 2025 +0900
+
+    오류 개선
+
+[33mcommit 2d6a3c423f9782b9d65bf8ee45358b1921714ddd[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Tue Dec 2 21:52:47 2025 +0900
+
+    검색창, 방문 목록 수정
+
+[33mcommit 8e3d7b5c98113d98e1fe29649c527ac80d7735e6[m
+Author: commast <lmsldh0218@gmail.com>
+Date:   Mon Dec 1 23:49:02 2025 +0900
+
+    fix: Upgrade flutter_code_editor to ^0.3.2 to fix breaking changes
+
+[33mcommit d93ae3d6594792ad64aa4b2cbdaf6d9c43532188[m
+Author: commast <lmsldh0218@gmail.com>
+Date:   Mon Dec 1 23:15:26 2025 +0900
+
+    휴지통오류 수정
+
+[33mcommit ed0870f90c932df869b57796aa0552d9257ec602[m
+Author: commast <lmsldh0218@gmail.com>
+Date:   Sun Nov 30 05:20:38 2025 +0900
+
+    로그인,비로그인상태공유수정,비밀번호변경기능
+
+[33mcommit fe5d9f5d4677f579ffd30a7734db67e9b9ea93ea[m
+Author: jaehy <jaehyuk7014@gmail.com>
+Date:   Sat Nov 29 00:10:33 2025 +0900
+
+    fix: email verification redirect & firebase settings
+
+[33mcommit 589e0051bc27bd895be9ed613c45666d94e3ff54[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Thu Nov 27 22:33:53 2025 +0900
+
+    이메일 연동
+
+[33mcommit e92aa1e8e81065636b117154cd16671e11c0b57e[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Thu Nov 27 20:06:38 2025 +0900
+
+    오류 개선
+
+[33mcommit 2b54d20be56067e52abc90f1699453dbaaa2315b[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Thu Nov 27 00:15:11 2025 +0900
+
+    휴지통 저장 오류 개선
+
+[33mcommit 1eeabcfe39eec680144e783d03acf7b67bdce47f[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Wed Nov 26 23:34:14 2025 +0900
+
+    DB연결, CRUD추가
+
+[33mcommit 6217c64fdef01f27408bdbe43758a6d025638c32[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Mon Nov 24 00:33:21 2025 +0900
+
+    stub 코드 포함
+
+[33mcommit 82279cf90027308858c0b0c039cd353d16d14fc8[m
+Merge: 45c1672 07edef2
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Sun Nov 23 23:03:52 2025 +0900
+
+    Merge branch 'master' of https://github.com/commast/notion_clone
+
+[33mcommit 45c167271e1ae86f13ec54ed6a41c28f1df33c8d[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Sun Nov 23 20:04:20 2025 +0900
+
+    이모티콘 제거
+
+[33mcommit 07edef2dafdb8de5f61169e83d6f25d08dd7477a[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Sun Nov 23 20:04:20 2025 +0900
+
+    이모티콘 제거
+
+[33mcommit d0f6c2a28507bf55970cd5d26533908b36ca9e78[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Sun Nov 23 19:45:55 2025 +0900
+
+    최종
+
+[33mcommit 554c8d4e95138b8838a45b22e74ec487a23f45dc[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Sun Nov 23 19:45:31 2025 +0900
+
+    최종
+
+[33mcommit 6fb2a12402f917f99619392d170c63d1bd738c4f[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Sun Nov 23 18:17:38 2025 +0900
+
+    항목 오류 수정
+
+[33mcommit 7bbca42ec86c60f384707dcb6b502db15a250595[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Sun Nov 23 17:31:37 2025 +0900
+
+    Initial commit
+
+[33mcommit be8846ec11b1ae5b823ec242d937e04f4ed0fcfd[m
+Author: commast <lmsldh0218@gmail.com>
+Date:   Sun Nov 23 14:47:35 2025 +0900
+
+    uni_links을 app_links로 대체
+
+[33mcommit 1d596d9dbf8b3bd89228ed974f0f73245a12b2bb[m
+Author: shkim49 <lojeve62@gamil.com>
+Date:   Sun Nov 23 06:50:42 2025 +0900
+
+    notion_clone
+
+[33mcommit 76c0b359e1026adbf9d257500871bd2db7382219[m
+Author: rhkralsgh <kmh23937@gmail.com>
+Date:   Fri Nov 21 23:35:45 2025 +0900
+
+    Add search, settings, and trash screens + theme system
+
+[33mcommit 4b1a3d85ac80faaeaa1107c137fb2ea030418852[m
+Author: jaehy <jaehyuk7014@gmail.com>
+Date:   Fri Nov 21 00:51:22 2025 +0900
+
+    Add login screen, update home/page sync and UI improvements
+
+[33mcommit 4ba6dbeaad2791eaaeb5deb2d0365f897a641b18[m
+Author: leedonghyeon <lmsldh0218@gmail.com>
+Date:   Wed Nov 19 23:42:51 2025 +0900
+
+    feat: Initial commit of consolidated single-page app

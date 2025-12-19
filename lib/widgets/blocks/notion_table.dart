@@ -93,7 +93,7 @@ class _TableSizeSelectorModalState extends State<TableSizeSelectorModal> {
 
 
 class NotionTable extends StatefulWidget {
-  final Map<String, dynamic> data; // 행, 열 , 셀(Map<String,String>)
+  final Map<String, dynamic> data;
   final ValueChanged<Map<String, dynamic>> onChanged;
 
   const NotionTable({
@@ -159,7 +159,7 @@ class _NotionTableState extends State<NotionTable> {
     widget.onChanged({
       'rows': _rows,
       'cols': _cols,
-      'cells': cells, // Map<String,String> (중첩 배열 없음)
+      'cells': cells,
     });
   }
 

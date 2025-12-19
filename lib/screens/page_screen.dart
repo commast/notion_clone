@@ -96,13 +96,11 @@ class _NotionPageScreenState extends State<NotionPageScreen> {
     // 현재 팀스페이스의 멤버 목록 가져오기
     final memberUids = await _getTeamMemberUids(currentTeamSpaceId);
 
-    // ✅ 링크 대상 페이지를 "현재 팀스페이스" 소속으로 맞추기
     await FirebaseFirestore.instance
         .collection('pages')
         .doc(targetPage.id)
         .update({'teamSpaceId': currentTeamSpaceId});
 
-    // ✅ 기존 공유 로직(멤버 권한 부여)
     await repo.promotePageToTeam(pageId: targetPage.id, memberUids: memberUids);
 
     // 로컬 객체도 반영
@@ -742,7 +740,6 @@ void _insertChartBlock() {
             return TableSizeSelectorModal(
               onTableCreated: (rows, cols) {
                 _saveState();
-                // [수정] insertNewBlock 사용
                 insertNewBlock(
                   BlockData(
                     type: 'table',
@@ -764,7 +761,7 @@ void _insertChartBlock() {
         insertNewBlock(
           BlockData(
             type: 'chart',
-            // 🔹 처음엔 비어 있는 리스트만 저장 (차트 위젯이 기본 예시 데이터를 채움)
+          
             content: <Map<String, dynamic>>[],
           ),
         );
@@ -789,7 +786,6 @@ void _insertChartBlock() {
 
         if (selectedPage == null) break;
 
-        // ✅ 현재 페이지가 "공유(팀) 페이지"인지 확인
         final String? currentTeamSpaceId = widget.page.teamSpaceId;
         final bool isTeamPage = currentTeamSpaceId != null;
 
@@ -841,7 +837,7 @@ void _insertChartBlock() {
                 break;
               }
             }
-            // link_only면 그냥 링크는 추가되지만, 팀원은 못 열 수 있음
+          
           }
         }
 
@@ -1554,8 +1550,8 @@ void _insertChartBlock() {
 
                   if (widget.allPages != null) {
                     try {
-                      // 트리 전체에서 해당 id 페이지 찾기
-                      final allPages = _getAllPages(); // 이미 위에 정의된 헬퍼
+
+                      final allPages = _getAllPages();
                       final target = allPages.firstWhere((p) => p.id == pageId);
                       pageTitle = target.title; // 최신 제목
                     } catch (_) {
@@ -1628,7 +1624,6 @@ void _insertChartBlock() {
   final List<Map<String, dynamic>> data = [];
 
   if (rawContent is List) {
-    // 정상 케이스: 이미 리스트 형태로 저장된 경우
     for (final item in rawContent) {
       if (item is Map) {
         final map = Map<String, dynamic>.from(item);
@@ -1638,14 +1633,10 @@ void _insertChartBlock() {
         if (colorVal is int) {
           map['color'] = Color(colorVal);
         }
-
-        // chartTitle 은 그대로 둠 (있으면 NotionChart 가 사용)
         data.add(map);
       }
     }
   } else {
-    // 예전 데이터는 그냥 빈 데이터로 처리
-    // NotionChart 가 기본 더미 데이터로 채워줌
   }
 
   blockWidget = GestureDetector(
@@ -1690,7 +1681,6 @@ void _insertChartBlock() {
                   );
                   break;
                                 case 'page_link':
-                  // content: { linkedPageId: ..., title: ... } 형태라고 가정
                   String? linkedId;
                   String fallbackTitle = '링크된 페이지';
 
@@ -1703,7 +1693,6 @@ void _insertChartBlock() {
                       fallbackTitle = map['title'] as String;
                     }
                   } else if (block.content is String) {
-                    // 예전 데이터 호환: content 에 제목만 있는 경우
                     fallbackTitle = block.content as String;
                   }
 
@@ -1768,9 +1757,7 @@ void _insertChartBlock() {
               return Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  // ✅ 롱프레스만 처리 (탭은 자식 위젯이 받게 됨)
                   onLongPress: () => _showBlockMenu(index),
-                  // ✅ 탭을 부모가 먹지 않도록
                   onTap: null,
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent,
